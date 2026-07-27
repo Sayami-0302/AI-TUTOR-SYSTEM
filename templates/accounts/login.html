@@ -1,0 +1,53 @@
+{% extends 'accounts/base.html' %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+
+<h2>Create Account</h2>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <label>Full Name</label>
+    {{ form.full_name }}
+    {% if form.full_name.errors %}
+        <small style="color:red;">{{ form.full_name.errors }}</small>
+    {% endif %}
+
+    <label>Username</label>
+    {{ form.username }}
+    {% if form.username.errors %}
+        <small style="color:red;">{{ form.username.errors }}</small>
+    {% endif %}
+
+    <label>Email</label>
+    {{ form.email }}
+    {% if form.email.errors %}
+        <small style="color:red;">{{ form.email.errors }}</small>
+    {% endif %}
+
+    <label>Password</label>
+    {{ form.password }}
+    {% if form.password.errors %}
+        <small style="color:red;">{{ form.password.errors }}</small>
+    {% endif %}
+
+    <label>Confirm Password</label>
+    {{ form.confirm_password }}
+    {% if form.confirm_password.errors %}
+        <small style="color:red;">{{ form.confirm_password.errors }}</small>
+    {% endif %}
+
+    {% if form.non_field_errors %}
+        <small style="color:red;">{{ form.non_field_errors }}</small>
+    {% endif %}
+
+    <br><br>
+    <button type="submit">Register</button>
+</form>
+
+<br>
+<p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
+
+{% endblock %}
