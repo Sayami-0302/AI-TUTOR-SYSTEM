@@ -1,0 +1,31 @@
+{% extends 'accounts/base.html' %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+
+<h2>My Profile</h2>
+
+<table>
+    <tr>
+        <td><strong>Full Name:</strong></td>
+        <td>{{ user.full_name }}</td>
+    </tr>
+    <tr>
+        <td><strong>Username:</strong></td>
+        <td>{{ user.username }}</td>
+    </tr>
+    <tr>
+        <td><strong>Email:</strong></td>
+        <td>{{ user.email }}</td>
+    </tr>
+    <tr>
+        <td><strong>Date Joined:</strong></td>
+        <td>{{ user.date_joined }}</td>
+    </tr>
+</table>
+
+<br>
+<a href="{% url 'logout' %}">Logout</a>
+
+{% endblock %}
