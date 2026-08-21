@@ -25,7 +25,7 @@
         </div>
     </div>
 
-    <!-- Account Details Form/Card -->
+    <!-- Account Details Card -->
     <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
         <div class="border-b border-gray-100 pb-4">
             <h3 class="text-lg font-bold text-gray-900">Personal Information</h3>
@@ -56,18 +56,15 @@
             </div>
         </div>
 
-        <!-- Danger Zone / Sign Out -->
+        <!-- Session Management / Sign Out -->
         <div class="pt-6 border-t border-gray-100 flex items-center justify-between">
             <div>
                 <p class="text-sm font-bold text-gray-900">Session Management</p>
                 <p class="text-xs text-gray-500">Sign out of your active browser session</p>
             </div>
-            <form action="{% url 'logout' %}" method="POST" class="m-0">
-                {% csrf_token %}
-                <button type="submit" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold text-sm rounded-xl transition border border-rose-200 flex items-center gap-2">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
-                </button>
-            </form>
+            <a href="{% url 'logout' %}" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold text-sm rounded-xl transition border border-rose-200 flex items-center gap-2">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+            </a>
         </div>
     </div>
 
