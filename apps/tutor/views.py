@@ -1,5 +1,5 @@
-import os
 import google.generativeai as genai
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -7,30 +7,23 @@ from django.views import View
 from django.utils.decorators import method_decorator
 from .models import TutorSession, ChatMessage
 
-# Configure Gemini API
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 @method_decorator(login_required, name='dispatch')
 class DashboardView(View):
     def get(self, request):
-        # Dynamically calculate metric counts for current user
-        total_docs = 0  # Hook up to documents later
-        total_quizzes = 0  # Hook up to quizzes later
         chat_sessions = TutorSession.objects.filter(user=request.user).count()
-
         context = {
-            'total_docs': total_docs,
-            'total_quizzes': total_quizzes,
+            'total_docs': 0,
+            'total_quizzes': 0,
             'chat_sessions': chat_sessions,
         }
         return render(request, 'tutor/dashboard.html', context)
 
+
 @method_decorator(login_required, name='dispatch')
 class TutorChatView(View):
     def get(self, request):
-        # Get or create the most recent active session for this user
-        session, created = TutorSession.objects.get_or_create(user=request.user)
-        # Retrieve all previous chat messages for this session
+        session, _ = TutorSession.objects.get_or_create(user=request.user)
         messages = session.messages.all()
         return render(request, 'tutor/chat.html', {
             'session': session,
@@ -38,62 +31,71 @@ class TutorChatView(View):
         })
 
     def post(self, request):
-        """API Endpoint to handle sending messages to Gemini"""
         user_message = request.POST.get('message', '').strip()
         if not user_message:
             return JsonResponse({'error': 'Message cannot be empty'}, status=400)
 
-        # Retrieve the user's active session
-        session = get_object_or_404(TutorSession, user=request.user)
+        session, _ = TutorSession.objects.get_or_create(user=request.user)
 
-        # 1. Save User Message to Database
+        # 1. Save User Message
         ChatMessage.objects.create(session=session, role='user', content=user_message)
 
-        # 2. Compile Chat History for Gemini's Memory Context
-        history = []
-        # Let's give Gemini a strong System Instruction so it acts like a professional college tutor
-        system_instruction = (
-            "You are an elite, encouraging, and highly knowledgeable AI academic tutor. "
-            "Your goal is to help college students master engineering, programming, mathematics, and science. "
-            "Explain concepts simply, use clean formatting, markdown list points, and write code blocks with syntax styling where needed. "
-            "Never write answers that are too lengthy; be concise and prompt the student to ask follow-up questions."
-        )
-
-        # Build message history array
-        for msg in session.messages.all():
-            history.append({
-                "role": "user" if msg.role == "user" else "model",
-                "parts": [msg.content]
-            })
+        # 2. Check API Key
+        api_key = getattr(settings, 'GEMINI_API_KEY', '')
+        if not api_key or api_key == 'your_actual_gemini_api_key_here':
+            reply = (
+                "⚠️ Gemini API Key is missing or invalid. "
+                "Please add a valid `GEMINI_API_KEY` to your `.env` file and restart the server."
+            )
+            ChatMessage.objects.create(session=session, role='model', content=reply)
+            return JsonResponse({'reply': reply})
 
         try:
-            # 3. Call the Gemini API
+            # 3. Configure and Call Gemini
+            genai.configure(api_key=api_key)
+
+            system_instruction = (
+                "You are an elite, encouraging, and highly knowledgeable AI Academic Tutor. "
+                "Your goal is to help college students master engineering, computer science, mathematics, and academic coursework. "
+                "Explain concepts clearly and concisely. Use markdown formatting with bullet points and code blocks with syntax highlighting where relevant. "
+                "Encourage critical thinking and keep explanations focused."
+            )
+
+            # Build history for conversation context
+            history = []
+            for msg in session.messages.all():
+                history.append({
+                    "role": "user" if msg.role == "user" else "model",
+                    "parts": [msg.content]
+                })
+
+            # Pass history excluding the message we just added
             model = genai.GenerativeModel(
                 model_name="gemini-1.5-flash",
                 system_instruction=system_instruction
             )
-            chat = model.start_chat(history=history[:-1]) # Don't pass the latest duplicate message
+            chat = model.start_chat(history=history[:-1])
             response = chat.send_message(user_message)
             ai_reply = response.text
 
-            # 4. Save AI Response to Database
+            # 4. Save AI Response
             ChatMessage.objects.create(session=session, role='model', content=ai_reply)
 
-            return JsonResponse({
-                'reply': ai_reply
-            })
+            return JsonResponse({'reply': ai_reply})
 
         except Exception as e:
-            # Fallback reply in case API keys are missing or invalid
-            error_msg = f"Tutor System Note: Gemini API call failed. Exception: {str(e)}"
-            return JsonResponse({
-                'reply': "I am having trouble connecting to my cognitive networks. Please make sure the 'GEMINI_API_KEY' is correctly configured inside your .env file."
-            })
+            # Print exact error to PowerShell console for debugging
+            print(f"\n[Gemini Error Details]: {e}\n")
+            error_reply = f"Error communicating with Tutor AI: {str(e)}"
+            ChatMessage.objects.create(session=session, role='model', content=error_reply)
+            return JsonResponse({'reply': error_reply})
+
 
 @method_decorator(login_required, name='dispatch')
 class DocumentsView(View):
     def get(self, request):
         return render(request, 'tutor/documents.html')
+
 
 @method_decorator(login_required, name='dispatch')
 class QuizzesView(View):
