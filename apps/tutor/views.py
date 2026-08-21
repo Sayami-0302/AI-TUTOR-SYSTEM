@@ -1,11 +1,65 @@
-import google.generativeai as genai
+from groq import Groq
 from django.conf import settings
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views import View
 from django.utils.decorators import method_decorator
 from .models import TutorSession, ChatMessage
+
+
+def call_groq_api(api_key, user_message, history_messages=None):
+    """
+    Official Groq SDK caller using currently active production models.
+    """
+    system_prompt = (
+        "You are Tutor, an elite, encouraging, and highly knowledgeable AI Academic Tutor for college students. "
+        "Provide direct, well-structured explanations using markdown bullet points and syntax-highlighted code blocks where helpful. "
+        "Never output internal thinking or <think> tags. Always reply directly, clearly, and warmly to the student."
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+
+    if history_messages:
+        for msg in history_messages:
+            role = "user" if msg.role == "user" else "assistant"
+            messages.append({"role": role, "content": msg.content})
+
+    messages.append({"role": "user", "content": user_message})
+
+    # Groq's verified active production models
+    candidate_models = [
+        "llama-3.3-70b-versatile",
+        "deepseek-r1-distill-qwen-32b",
+        "gemma2-9b-it",
+    ]
+
+    client = Groq(api_key=api_key)
+    last_error = ""
+
+    for model_name in candidate_models:
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=0.6,
+                max_tokens=1200,
+            )
+            reply_text = response.choices[0].message.content.strip()
+
+            # Clean any internal reasoning tags if present
+            if "<think>" in reply_text and "</think>" in reply_text:
+                reply_text = reply_text.split("</think>")[-1].strip()
+
+            print(f"✅ Successfully used Groq model: {model_name}")
+            return reply_text
+
+        except Exception as e:
+            last_error = str(e)
+            print(f"[{model_name} failed]: {last_error}")
+            continue
+
+    return f"⚠️ **Tutor AI Note**: Could not reach Groq. Details: {last_error}"
 
 
 @method_decorator(login_required, name='dispatch')
@@ -22,73 +76,87 @@ class DashboardView(View):
 
 @method_decorator(login_required, name='dispatch')
 class TutorChatView(View):
-    def get(self, request):
-        session, _ = TutorSession.objects.get_or_create(user=request.user)
-        messages = session.messages.all()
+    def get(self, request, session_id=None):
+        all_sessions = TutorSession.objects.filter(user=request.user)
+
+        if session_id:
+            active_session = get_object_or_404(TutorSession, id=session_id, user=request.user)
+        else:
+            active_session = all_sessions.first()
+            if not active_session:
+                active_session = TutorSession.objects.create(user=request.user, title="First Study Session")
+
+        # Clean any old error banners from chat history
+        active_session.messages.filter(content__icontains="⚠️").delete()
+        active_session.messages.filter(content__icontains="Error communicating").delete()
+
+        messages = active_session.messages.all()
         return render(request, 'tutor/chat.html', {
-            'session': session,
-            'chat_messages': messages
+            'active_session': active_session,
+            'chat_messages': messages,
+            'past_sessions': all_sessions,
         })
 
-    def post(self, request):
+    def post(self, request, session_id=None):
         user_message = request.POST.get('message', '').strip()
         if not user_message:
             return JsonResponse({'error': 'Message cannot be empty'}, status=400)
 
-        session, _ = TutorSession.objects.get_or_create(user=request.user)
+        if session_id:
+            session = get_object_or_404(TutorSession, id=session_id, user=request.user)
+        else:
+            session = TutorSession.objects.filter(user=request.user).first()
+            if not session:
+                session = TutorSession.objects.create(user=request.user, title="New Study Session")
 
         # 1. Save User Message
         ChatMessage.objects.create(session=session, role='user', content=user_message)
 
         # 2. Check API Key
-        api_key = getattr(settings, 'GEMINI_API_KEY', '')
-        if not api_key or api_key == 'your_actual_gemini_api_key_here':
-            reply = (
-                "⚠️ Gemini API Key is missing or invalid. "
-                "Please add a valid `GEMINI_API_KEY` to your `.env` file and restart the server."
-            )
-            ChatMessage.objects.create(session=session, role='model', content=reply)
+        api_key = getattr(settings, 'GROQ_API_KEY', '')
+        if not api_key or 'your_actual' in api_key:
+            reply = "⚠️ **Missing Groq API Key**: Please configure `GROQ_API_KEY=gsk_...` in your `.env` file."
             return JsonResponse({'reply': reply})
 
-        try:
-            # 3. Configure and Call Gemini
-            genai.configure(api_key=api_key)
+        # 3. Auto-Rename Session Title on first question
+        default_titles = ["New Study Session", "First Study Session", "New Chat"]
+        if session.title in default_titles:
+            summary_title = user_message[:25].capitalize() + ("..." if len(user_message) > 25 else "")
+            session.title = summary_title
+            session.save()
 
-            system_instruction = (
-                "You are an elite, encouraging, and highly knowledgeable AI Academic Tutor. "
-                "Your goal is to help college students master engineering, computer science, mathematics, and academic coursework. "
-                "Explain concepts clearly and concisely. Use markdown formatting with bullet points and code blocks with syntax highlighting where relevant. "
-                "Encourage critical thinking and keep explanations focused."
-            )
+        # 4. Compile recent context history
+        past_messages = list(session.messages.exclude(content__icontains="⚠️").order_by('timestamp'))[-8:]
 
-            # Build history for conversation context
-            history = []
-            for msg in session.messages.all():
-                history.append({
-                    "role": "user" if msg.role == "user" else "model",
-                    "parts": [msg.content]
-                })
+        # 5. Call Groq
+        ai_reply = call_groq_api(api_key, user_message, past_messages)
 
-            # Pass history excluding the message we just added
-            model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
-                system_instruction=system_instruction
-            )
-            chat = model.start_chat(history=history[:-1])
-            response = chat.send_message(user_message)
-            ai_reply = response.text
-
-            # 4. Save AI Response
+        # 6. Save AI Response
+        if not ai_reply.startswith("⚠️"):
             ChatMessage.objects.create(session=session, role='model', content=ai_reply)
 
-            return JsonResponse({'reply': ai_reply})
+        return JsonResponse({
+            'reply': ai_reply,
+            'session_title': session.title,
+            'session_id': session.id
+        })
 
-        except Exception as e:
-            # Print exact error to PowerShell console for debugging
-            print(f"\n[Gemini Error Details]: {e}\n")
-            error_reply = f"Error communicating with Tutor AI: {str(e)}"
-            ChatMessage.objects.create(session=session, role='model', content=error_reply)
-            return JsonResponse({'reply': error_reply})
+
+@method_decorator(login_required, name='dispatch')
+class NewSessionView(View):
+    def get(self, request):
+        new_session = TutorSession.objects.create(user=request.user, title="New Chat")
+        return redirect('tutor_chat_session', session_id=new_session.id)
+
+
+@method_decorator(login_required, name='dispatch')
+class ClearSessionView(View):
+    def post(self, request, session_id):
+        session = get_object_or_404(TutorSession, id=session_id, user=request.user)
+        session.messages.all().delete()
+        session.title = "New Chat"
+        session.save()
+        return JsonResponse({'success': True})
 
 
 @method_decorator(login_required, name='dispatch')

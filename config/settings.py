@@ -118,5 +118,7 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 
-# External APIs
+# AI API Configurations
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
