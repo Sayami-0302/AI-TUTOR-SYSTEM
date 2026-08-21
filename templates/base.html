@@ -23,7 +23,7 @@
             <!-- Brand Logo -->
             <div class="flex items-center justify-between h-16 px-6 bg-slate-950 border-b border-slate-800">
                 <a href="{% url 'dashboard' %}" class="flex items-center space-x-2">
-                    <i class="fa-solid class fa-graduation-cap text-indigo-400 text-2xl"></i>
+                    <i class="fa-solid fa-graduation-cap text-indigo-400 text-2xl"></i>
                     <span class="text-xl font-bold tracking-tight">Tutor<span class="text-indigo-400">AI</span></span>
                 </a>
                 <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white">
@@ -39,10 +39,10 @@
                 <a href="{% url 'tutor_chat' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 transition {% if request.resolver_match.url_name == 'tutor_chat' %}bg-indigo-600 text-white{% else %}text-gray-300{% endif %}">
                     <i class="fa-solid fa-robot mr-3 text-lg w-5 text-center"></i> AI Tutor Space
                 </a>
-                <a href="#" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 rounded-lg hover:bg-slate-800 transition">
+                <a href="{% url 'documents' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 transition {% if request.resolver_match.url_name == 'documents' %}bg-indigo-600 text-white{% else %}text-gray-300{% endif %}">
                     <i class="fa-solid fa-file-invoice mr-3 text-lg w-5 text-center"></i> My Documents
                 </a>
-                <a href="#" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 rounded-lg hover:bg-slate-800 transition">
+                <a href="{% url 'quizzes' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 transition {% if request.resolver_match.url_name == 'quizzes' %}bg-indigo-600 text-white{% else %}text-gray-300{% endif %}">
                     <i class="fa-solid fa-lightbulb mr-3 text-lg w-5 text-center"></i> Quizzes
                 </a>
                 <a href="{% url 'profile' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 transition {% if request.resolver_match.url_name == 'profile' %}bg-indigo-600 text-white{% else %}text-gray-300{% endif %}">
