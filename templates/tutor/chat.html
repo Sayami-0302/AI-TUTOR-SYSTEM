@@ -1,69 +1,108 @@
 {% extends 'base.html' %}
 
 {% block title %}AI Tutor | TutorAI{% endblock %}
-{% block header_title %}AI Tutor Session{% endblock %}
+{% block header_title %}AI Tutor Space{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto h-[calc(100vh-10rem)] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
     
     <!-- Chat Header -->
-    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center space-x-3">
-        <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white text-lg">
-            <i class="fa-solid fa-robot animate-pulse"></i>
-        </div>
-        <div>
-            <h2 class="text-base font-bold text-gray-800">Academic Assistant</h2>
-            <div class="flex items-center space-x-1">
-                <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                <span class="text-xs text-emerald-600 font-medium">Ready to Teach</span>
+    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white text-lg">
+                <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-gray-800">Academic Assistant</h2>
+                <div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                    <span class="text-xs text-emerald-600 font-medium">Ready to Teach</span>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Messages Container -->
     <div id="chat-messages" class="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/50">
-        <!-- AI Welcome Message -->
+        
+        <!-- Welcome Message -->
         <div class="flex items-start space-x-3 max-w-[80%]">
             <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
                 AI
             </div>
             <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-sm text-gray-700 leading-relaxed">
-                Hello! I am your AI Tutor. You can upload textbook chapters later, but right now I am ready to help you study, explain formulas, or teach you complex concepts. What subject are we studying today?
+                Hello! I am your AI Academic Tutor. What topics, questions, or code modules are we examining today?
             </div>
         </div>
+
+        <!-- Render Database History Dynamically -->
+        {% for msg in chat_messages %}
+            {% if msg.role == 'user' %}
+                <!-- User Message -->
+                <div class="flex items-start space-x-3 max-w-[80%] ml-auto flex-row-reverse space-x-reverse">
+                    <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 uppercase">
+                        Me
+                    </div>
+                    <div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed">
+                        {{ msg.content|linebreaksbr }}
+                    </div>
+                </div>
+            {% else %}
+                <!-- AI Message -->
+                <div class="flex items-start space-x-3 max-w-[80%]">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                        AI
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-sm text-gray-700 leading-relaxed">
+                        {{ msg.content|linebreaksbr }}
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Typing Indicator (Hidden by default) -->
+    <div id="typing-indicator" class="hidden px-6 py-3 bg-slate-50/50 border-t border-gray-100 flex items-center space-x-2 text-xs text-gray-500">
+        <i class="fa-solid fa-circle-notch fa-spin text-indigo-600"></i>
+        <span>Tutor is drafting an explanation...</span>
     </div>
 
     <!-- Input Bar -->
     <div class="p-4 bg-white border-t border-gray-200">
         <form id="chat-form" class="flex items-center space-x-3">
-            <input type="text" id="user-input" required placeholder="Ask your Tutor anything (e.g. Explain photosynthesis or Python loops...)" 
+            {% csrf_token %}
+            <input type="text" id="user-input" required placeholder="Type a subject topic or concept to learn..." 
                    class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm">
-            <button type="submit" class="w-12 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 transition-transform active:scale-95">
+            <button type="submit" id="send-btn" class="w-12 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 transition-transform active:scale-95">
                 <i class="fa-solid fa-paper-plane text-base"></i>
             </button>
         </form>
     </div>
 </div>
 
-<!-- Basic Interactive JavaScript Simulation -->
 <script>
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
     const chatMessages = document.getElementById('chat-messages');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const sendBtn = document.getElementById('send-btn');
+
+    // Auto-scroll to latest message on page load
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 
     chatForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        const messageText = userInput.value.trim();
+        const messageText = userInput.value.strip ? userInput.value.strip() : userInput.value.trim();
         if(!messageText) return;
 
-        // Render User Message
+        // 1. Render User Message instantly on screen
         const userHtml = `
             <div class="flex items-start space-x-3 max-w-[80%] ml-auto flex-row-reverse space-x-reverse">
                 <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 uppercase">
                     Me
                 </div>
                 <div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed">
-                    ${messageText}
+                    ${messageText.replace(/\n/g, '<br>')}
                 </div>
             </div>
         `;
@@ -71,21 +110,48 @@
         userInput.value = '';
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        // Mock automated response (Before backend API is plugged in)
-        setTimeout(() => {
+        // 2. Show Typing Status indicator and disable inputs
+        typingIndicator.classList.remove('hidden');
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+
+        // 3. Post data to views.py using AJAX fetch request
+        const formData = new FormData();
+        formData.append('message', messageText);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+        fetch('{% url "tutor_chat" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Hide indicator and re-enable inputs
+            typingIndicator.classList.add('hidden');
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+
+            // 4. Render the AI response returned from views.py
             const botHtml = `
                 <div class="flex items-start space-x-3 max-w-[80%]">
                     <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
                         AI
                     </div>
                     <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-sm text-gray-700 leading-relaxed">
-                        Interesting question about "<strong>${messageText}</strong>"! Once we hook up the Gemini API keys in the next stage, I will fetch textbook context and answer you dynamically. For now, our layout looks incredibly clean and robust!
+                        ${data.reply.replace(/\n/g, '<br>')}
                     </div>
                 </div>
             `;
             chatMessages.insertAdjacentHTML('beforeend', botHtml);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 1000);
+        })
+        .catch(error => {
+            typingIndicator.classList.add('hidden');
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            console.error('AJAX Error:', error);
+        });
     });
 </script>
 {% endblock %}
