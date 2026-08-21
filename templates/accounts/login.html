@@ -9,7 +9,7 @@
         <p>Log in to access your TutorAI workspace</p>
     </div>
 
-    <form method="POST">
+    <form method="POST" action="{% url 'login' %}">
         {% csrf_token %}
 
         <div class="form-group">

@@ -9,7 +9,7 @@
         <p>Join TutorAI to start interactive studying</p>
     </div>
 
-    <form method="POST">
+    <form method="POST" action="{% url 'register' %}">
         {% csrf_token %}
 
         <div class="form-group">
