@@ -16,8 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
+from django.shortcuts import redirect
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("accounts/", include("apps.accounts.urls")),
+    path('admin/', admin.site.urls),
+    path('accounts/', include('apps.accounts.urls')),
+    path('tutor/', include('apps.tutor.urls')), # Mounts tutor urls
+    path('', lambda request: redirect('dashboard')), # Landing redirects straight to dashboard
 ]
+

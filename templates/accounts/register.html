@@ -1,53 +1,79 @@
 {% extends 'accounts/base.html' %}
 
-{% block title %}Register{% endblock %}
+{% block title %}Create Account | TutorAI{% endblock %}
 
 {% block content %}
+<div class="auth-card">
+    <div class="brand-header">
+        <h1>Create Account</h1>
+        <p>Join TutorAI to start interactive studying</p>
+    </div>
 
-<h2>Create Account</h2>
+    <form method="POST">
+        {% csrf_token %}
 
-<form method="POST">
-    {% csrf_token %}
+        <div class="form-group">
+            <label class="form-label">Full Name</label>
+            {{ form.full_name }}
+            {% if form.full_name.errors %}
+                <span class="error-text">{{ form.full_name.errors.0 }}</span>
+            {% endif %}
+        </div>
 
-    <label>Full Name</label>
-    {{ form.full_name }}
-    {% if form.full_name.errors %}
-        <small style="color:red;">{{ form.full_name.errors }}</small>
-    {% endif %}
+        <div class="form-group">
+            <label class="form-label">Username</label>
+            {{ form.username }}
+            {% if form.username.errors %}
+                <span class="error-text">{{ form.username.errors.0 }}</span>
+            {% endif %}
+        </div>
 
-    <label>Username</label>
-    {{ form.username }}
-    {% if form.username.errors %}
-        <small style="color:red;">{{ form.username.errors }}</small>
-    {% endif %}
+        <div class="form-group">
+            <label class="form-label">Email Address</label>
+            {{ form.email }}
+            {% if form.email.errors %}
+                <span class="error-text">{{ form.email.errors.0 }}</span>
+            {% endif %}
+        </div>
 
-    <label>Email</label>
-    {{ form.email }}
-    {% if form.email.errors %}
-        <small style="color:red;">{{ form.email.errors }}</small>
-    {% endif %}
+        <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="password-wrapper">
+                <input type="password" name="password" id="id_reg_password" placeholder="Create a strong password" class="form-control" required>
+                <button type="button" class="toggle-password-btn" onclick="togglePassword('id_reg_password', this)" title="Show password" tabindex="-1">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+            {% if form.password.errors %}
+                <span class="error-text">{{ form.password.errors.0 }}</span>
+            {% endif %}
+        </div>
 
-    <label>Password</label>
-    {{ form.password }}
-    {% if form.password.errors %}
-        <small style="color:red;">{{ form.password.errors }}</small>
-    {% endif %}
+        <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <div class="password-wrapper">
+                <input type="password" name="confirm_password" id="id_reg_confirm_password" placeholder="Confirm your password" class="form-control" required>
+                <button type="button" class="toggle-password-btn" onclick="togglePassword('id_reg_confirm_password', this)" title="Show password" tabindex="-1">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+            {% if form.confirm_password.errors %}
+                <span class="error-text">{{ form.confirm_password.errors.0 }}</span>
+            {% endif %}
+        </div>
 
-    <label>Confirm Password</label>
-    {{ form.confirm_password }}
-    {% if form.confirm_password.errors %}
-        <small style="color:red;">{{ form.confirm_password.errors }}</small>
-    {% endif %}
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>{{ form.non_field_errors.0 }}</span>
+            </div>
+        {% endif %}
 
-    {% if form.non_field_errors %}
-        <small style="color:red;">{{ form.non_field_errors }}</small>
-    {% endif %}
+        <button type="submit" class="submit-btn">Create Account</button>
+    </form>
 
-    <br><br>
-    <button type="submit">Register</button>
-</form>
-
-<br>
-<p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
-
+    <div class="auth-footer">
+        Already have an account? <a href="{% url 'login' %}">Sign in</a>
+    </div>
+</div>
 {% endblock %}

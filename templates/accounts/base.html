@@ -3,65 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Tutor System{% endblock %}</title>
+    <title>{% block title %}TutorAI{% endblock %}</title>
+    <!-- FontAwesome for the Eye Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
-            max-width: 500px;
-            margin: 50px auto;
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
+            margin: 0;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 440px;
+        }
+        .auth-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+        }
+        .brand-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .brand-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .brand-header p {
+            margin: 6px 0 0;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 6px;
         }
         .form-control {
             width: 100%;
-            padding: 8px;
-            margin: 8px 0;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            height: 44px;
+            padding: 10px 14px;
+            font-size: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #0f172a;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
+        .form-control:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+        /* Password wrapper with Eye button */
+        .password-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .password-wrapper input {
+            padding-right: 44px; /* leaves room for the eye icon */
+        }
+        .toggle-password-btn {
+            position: absolute;
+            right: 12px;
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            width: auto !important;
+            padding: 6px !important;
+            margin: 0 !important;
             cursor: pointer;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: color 0.15s ease;
         }
-        button:hover {
-            background-color: #0056b3;
+        .toggle-password-btn:hover {
+            color: #4f46e5;
+            background: none !important;
+        }
+        .submit-btn {
+            width: 100%;
+            height: 44px;
+            background-color: #4f46e5;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background-color 0.15s ease, transform 0.05s ease;
+        }
+        .submit-btn:hover {
+            background-color: #4338ca;
+        }
+        .submit-btn:active {
+            transform: scale(0.99);
+        }
+        .alert {
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .alert-success {
-            padding: 10px;
-            background-color: #d4edda;
-            color: #155724;
-            border-radius: 4px;
-            margin-bottom: 10px;
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
         }
         .alert-error {
-            padding: 10px;
-            background-color: #f8d7da;
-            color: #721c24;
-            border-radius: 4px;
-            margin-bottom: 10px;
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
         }
-        a {
-            color: #007bff;
+        .error-text {
+            color: #dc2626;
+            font-size: 12px;
+            margin-top: 4px;
+            display: block;
+        }
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .auth-footer a {
+            color: #4f46e5;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .auth-footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert-{{ message.tags }}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    {% endif %}
+    <div class="auth-container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="fa-solid {% if message.tags == 'success' %}fa-circle-check{% else %}fa-circle-exclamation{% endif %}"></i>
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        {% endif %}
 
-    {% block content %}
-    {% endblock %}
+        {% block content %}
+        {% endblock %}
+    </div>
 
+    <!-- Universal Eye Icon Toggle Script -->
+    <script>
+        function togglePassword(fieldId, btn) {
+            const input = document.getElementById(fieldId);
+            const icon = btn.querySelector('i');
+            if (!input || !icon) return;
+
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+                btn.setAttribute('title', 'Hide password');
+            } else {
+                input.type = "password";
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+                btn.setAttribute('title', 'Show password');
+            }
+        }
+    </script>
 </body>
 </html>

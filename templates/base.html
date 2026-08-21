@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TutorAI - Dashboard{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- SIDEBAR (Collapsible on Mobile) -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-20 flex flex-col w-64 h-full bg-slate-900 text-white transition-transform -translate-x-full md:translate-x-0 md:relative">
+            <!-- Brand Logo -->
+            <div class="flex items-center justify-between h-16 px-6 bg-slate-950 border-b border-slate-800">
+                <a href="{% url 'dashboard' %}" class="flex items-center space-x-2">
+                    <i class="fa-solid class fa-graduation-cap text-indigo-400 text-2xl"></i>
+                    <span class="text-xl font-bold tracking-tight">Tutor<span class="text-indigo-400">AI</span></span>
+                </a>
+                <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+                <a href="{% url 'dashboard' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 transition {% if request.resolver_match.url_name == 'dashboard' %}bg-indigo-600 text-white{% else %}text-gray-300{% endif %}">
+                    <i class="fa-solid fa-chart-pie mr-3 text-lg w-5 text-center"></i> Dashboard
+                </a>
+                <a href="{% url 'tutor_chat' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 transition {% if request.resolver_match.url_name == 'tutor_chat' %}bg-indigo-600 text-white{% else %}text-gray-300{% endif %}">
+                    <i class="fa-solid fa-robot mr-3 text-lg w-5 text-center"></i> AI Tutor Space
+                </a>
+                <a href="#" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 rounded-lg hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-file-invoice mr-3 text-lg w-5 text-center"></i> My Documents
+                </a>
+                <a href="#" class="flex items-center px-4 py-3 text-sm font-medium text-gray-300 rounded-lg hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-lightbulb mr-3 text-lg w-5 text-center"></i> Quizzes
+                </a>
+                <a href="{% url 'profile' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-slate-800 transition {% if request.resolver_match.url_name == 'profile' %}bg-indigo-600 text-white{% else %}text-gray-300{% endif %}">
+                    <i class="fa-solid fa-user-gear mr-3 text-lg w-5 text-center"></i> Profile Settings
+                </a>
+            </nav>
+
+            <!-- Bottom User Card -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-white uppercase shadow-sm">
+                        {{ user.full_name|slice:":1" }}
+                    </div>
+                    <div class="truncate max-w-[120px]">
+                        <p class="text-sm font-semibold truncate">{{ user.full_name }}</p>
+                        <span class="text-xs text-gray-400">Student</span>
+                    </div>
+                </div>
+                <form action="{% url 'logout' %}" method="POST" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="text-gray-400 hover:text-rose-400 transition" title="Sign Out">
+                        <i class="fa-solid fa-arrow-right-from-bracket text-lg"></i>
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- MAIN WINDOW CONTENT -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            
+            <!-- TOP BAR HEADER -->
+            <header class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                    <button onclick="toggleSidebar()" class="md:hidden text-gray-600 hover:text-indigo-600">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <h1 class="text-lg font-semibold text-gray-800">{% block header_title %}Welcome Back!{% endblock %}</h1>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <span class="hidden md:inline text-sm text-gray-500">Term: 7th Semester</span>
+                    <div class="w-px h-6 bg-gray-200"></div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-400 uppercase">
+                            {{ user.full_name|slice:":1" }}
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- CONTAINER FOR CONTENT -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <!-- Notifications/Messages -->
+                {% if messages %}
+                <div class="max-w-4xl mx-auto mb-6 space-y-2">
+                    {% for message in messages %}
+                    <div class="p-4 rounded-lg flex items-center justify-between {% if message.tags == 'success' %}bg-green-50 border-l-4 border-green-500 text-green-800{% else %}bg-red-50 border-l-4 border-red-500 text-red-800{% endif %}">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid {% if message.tags == 'success' %}fa-circle-check{% else %}fa-circle-exclamation{% endif %} text-lg"></i>
+                            <p class="text-sm font-medium">{{ message }}</p>
+                        </div>
+                        <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- RESPONSIVE SIDEBAR SCRIPT -->
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+    </script>
+</body>
+</html>

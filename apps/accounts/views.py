@@ -1,3 +1,4 @@
+from django.http import request
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout, authenticate
 from django.contrib import messages
@@ -34,6 +35,9 @@ class LoginView(View):
                 return redirect('profile')
             else:
                 messages.error(request, "Invalid email or password.")
+        if user:
+            login(request, user)
+        return redirect('dashboard') # Redirect straight to the beautiful dashboard        
         return render(request, 'accounts/login.html', {'form': form})
 
 

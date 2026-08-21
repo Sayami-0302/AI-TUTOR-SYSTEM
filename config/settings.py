@@ -35,7 +35,6 @@ ALLOWED_HOSTS = []
 
 
 
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -44,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.accounts',
+    'apps.tutor', # Add this line to register your tutor app
 ]
 
 AUTH_USER_MODEL = "accounts.User"
