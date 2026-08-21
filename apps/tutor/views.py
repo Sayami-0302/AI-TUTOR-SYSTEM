@@ -10,7 +10,8 @@ from .models import TutorSession, ChatMessage
 
 def call_groq_api(api_key, user_message, history_messages=None):
     """
-    Official Groq SDK caller using currently active production models.
+    Official Groq SDK caller with dynamic active model discovery.
+    Automatically queries Groq for active chat models to avoid decommissioned model errors.
     """
     system_prompt = (
         "You are Tutor, an elite, encouraging, and highly knowledgeable AI Academic Tutor for college students. "
@@ -27,16 +28,34 @@ def call_groq_api(api_key, user_message, history_messages=None):
 
     messages.append({"role": "user", "content": user_message})
 
-    # Groq's verified active production models
-    candidate_models = [
-        "llama-3.3-70b-versatile",
-        "deepseek-r1-distill-qwen-32b",
-        "gemma2-9b-it",
-    ]
-
     client = Groq(api_key=api_key)
+
+    # 1. Dynamically fetch currently active models from Groq API
+    candidate_models = []
+    try:
+        models_data = client.models.list().data
+        # Filter for text chat models (exclude audio/whisper/vision/guard models)
+        candidate_models = [
+            m.id for m in models_data
+            if not any(x in m.id.lower() for x in ['whisper', 'embed', 'guard', 'vision'])
+        ]
+        # Prioritize 70b / versatile models
+        candidate_models.sort(
+            key=lambda name: (
+                0 if '3.3-70b' in name else
+                1 if '70b' in name else
+                2 if '8b' in name else
+                3
+            )
+        )
+        print(f"[Active Groq Models Found]: {candidate_models}")
+    except Exception as list_err:
+        print(f"[Groq ListModels Note]: {list_err}")
+        candidate_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+
     last_error = ""
 
+    # 2. Iterate through active candidate models
     for model_name in candidate_models:
         try:
             response = client.chat.completions.create(
@@ -47,7 +66,7 @@ def call_groq_api(api_key, user_message, history_messages=None):
             )
             reply_text = response.choices[0].message.content.strip()
 
-            # Clean any internal reasoning tags if present
+            # Clean any reasoning think tags if using a reasoning model
             if "<think>" in reply_text and "</think>" in reply_text:
                 reply_text = reply_text.split("</think>")[-1].strip()
 
@@ -56,7 +75,7 @@ def call_groq_api(api_key, user_message, history_messages=None):
 
         except Exception as e:
             last_error = str(e)
-            print(f"[{model_name} failed]: {last_error}")
+            print(f"[{model_name} attempt failed]: {last_error}")
             continue
 
     return f"⚠️ **Tutor AI Note**: Could not reach Groq. Details: {last_error}"
