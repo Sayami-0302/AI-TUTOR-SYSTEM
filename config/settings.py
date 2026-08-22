@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apps.accounts',
+    'apps.documents',
     'apps.tutor',
 ]
 
@@ -120,3 +121,7 @@ LOGOUT_REDIRECT_URL = 'login'
 
 # External APIs
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
