@@ -1,6 +1,6 @@
 import fitz
 import re
-from .models import Document, DocumentContent
+from .models import Document, DocumentContent, DocumentChunk
 from .validators import validate_pdf
 
 
@@ -59,15 +59,25 @@ def create_document(*, user, file):
         extracted_text = extract_pdf_text(file)
         cleaned_text = clean_text(extracted_text)
 
+        chunks = chunk_text(cleaned_text)
+
+        DocumentChunk.objects.bulk_create(
+        [
+            DocumentChunk(
+                document=document,
+                text=chunk,
+                chunk_index=index,
+            )   
+        for index, chunk in enumerate(chunks)
+        ]
+        )
+
         DocumentContent.objects.create(
             document=document,
             text=cleaned_text,
         )
 
-        DocumentContent.objects.create(
-            document=document,
-            text=extracted_text,
-        )
+
 
         document.status = "ready"
         document.save(update_fields=["status"])
@@ -79,3 +89,33 @@ def create_document(*, user, file):
 
     return document
 
+def chunk_text(text, chunk_size=1000, overlap=200):
+    """
+    Split cleaned text into overlapping chunks.
+
+    chunk_size: maximum approximate number of characters per chunk.
+    overlap: number of characters shared between consecutive chunks.
+    """
+
+    if not text:
+        return []
+
+    chunks = []
+
+    start = 0
+    text_length = len(text)
+
+    while start < text_length:
+        end = start + chunk_size
+
+        chunk = text[start:end].strip()
+
+        if chunk:
+            chunks.append(chunk)
+
+        if end >= text_length:
+            break
+
+        start = end - overlap
+
+    return chunks
