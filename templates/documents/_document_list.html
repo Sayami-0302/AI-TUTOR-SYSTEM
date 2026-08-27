@@ -1,0 +1,19 @@
+{% for document in documents %}
+<div class="bg-white rounded-xl border border-gray-200 p-4">
+    <h3 class="font-semibold text-gray-900">
+        {{ document.title }}
+    </h3>
+
+    <p class="text-sm text-gray-500">
+        Uploaded {{ document.uploaded_at }}
+    </p>
+
+    <p class="text-sm">
+        Status: {{ document.status }}
+    </p>
+</div>
+{% empty %}
+<p class="text-gray-500">
+    No documents uploaded yet.
+</p>
+{% endfor %}

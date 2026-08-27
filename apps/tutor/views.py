@@ -6,7 +6,9 @@ from django.contrib.auth.decorators import login_required
 from django.views import View
 from django.utils.decorators import method_decorator
 from .models import TutorSession, ChatMessage
-
+from apps.documents.models import Document
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import TemplateView
 
 def call_groq_api(api_key, user_message, history_messages=None):
     """
@@ -179,9 +181,17 @@ class ClearSessionView(View):
 
 
 @method_decorator(login_required, name='dispatch')
-class DocumentsView(View):
-    def get(self, request):
-        return render(request, 'tutor/documents.html')
+class DocumentsView(LoginRequiredMixin, TemplateView):
+    template_name = "tutor/documents.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context["documents"] = Document.objects.filter(
+            owner=self.request.user
+        ).order_by("-uploaded_at")
+
+        return context
 
 
 @method_decorator(login_required, name='dispatch')

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Document</title>
+</head>
+<body>
+
+<h1>Upload Document</h1>
+
+{% if error %}
+    <p style="color: red;">{{ error }}</p>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <label for="file">PDF Document:</label>
+    <input
+        type="file"
+        id="file"
+        name="file"
+        accept=".pdf"
+        required
+    >
+
+    <button type="submit">Upload</button>
+</form>
+
+</body>
+</html>
