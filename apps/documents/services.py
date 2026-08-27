@@ -1,4 +1,4 @@
-import fitz
+import pymupdf as fitz
 import re
 from .models import Document, DocumentContent, DocumentChunk
 from .validators import validate_pdf

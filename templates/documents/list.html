@@ -1,39 +1,92 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>My Documents</title>
-</head>
-<body>
+{% extends 'base.html' %}
 
-<h1>My Documents</h1>
+{% block title %}My Documents | TutorAI{% endblock %}
+{% block header_title %}Document Library{% endblock %}
 
-<a href="{% url 'documents:upload' %}">
-    Upload Document
-</a>
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-8">
 
-<hr>
-
-{% if documents %}
-
-    {% for document in documents %}
-
-        <div>
-            <h3>{{ document.title }}</h3>
-
-            <p>Status: {{ document.status }}</p>
-
-            <p>Uploaded: {{ document.uploaded_at }}</p>
+    <!-- Header Banner & Action Button -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="space-y-1 text-center sm:text-left">
+            <h2 class="text-xl font-bold text-gray-900">Your Study Documents ({{ documents|length }})</h2>
+            <p class="text-sm text-gray-500">
+                Uploaded PDFs and notes processed into AI embeddings for your Tutor and Quizzes.
+            </p>
         </div>
+        <a href="{% url 'documents:upload' %}" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-md shadow-indigo-100 flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Document
+        </a>
+    </div>
 
-        <hr>
+    <!-- Documents Grid -->
+    {% if documents %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for doc in documents %}
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col justify-between hover:border-indigo-300 hover:shadow-md transition group space-y-4">
+            
+            <div class="space-y-3">
+                <div class="flex items-start justify-between">
+                    <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-2xl font-bold shadow-sm">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
 
-    {% endfor %}
+                    <!-- Processing Status Badge -->
+                    {% if doc.status == 'ready' %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <i class="fa-solid fa-circle-check mr-1 text-[10px]"></i> Ready
+                        </span>
+                    {% elif doc.status == 'processing' %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
+                            <i class="fa-solid fa-circle-notch fa-spin mr-1 text-[10px]"></i> Processing
+                        </span>
+                    {% elif doc.status == 'failed' %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            <i class="fa-solid fa-circle-xmark mr-1 text-[10px]"></i> Failed
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <i class="fa-solid fa-clock mr-1 text-[10px]"></i> Uploaded
+                        </span>
+                    {% endif %}
+                </div>
 
-{% else %}
+                <div class="space-y-1">
+                    <h4 class="font-bold text-gray-900 text-base leading-snug truncate group-hover:text-indigo-600 transition" title="{{ doc.title }}">
+                        {{ doc.title }}
+                    </h4>
+                    <p class="text-xs text-gray-400">Uploaded on {{ doc.uploaded_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
 
-    <p>You haven't uploaded any documents yet.</p>
+            <!-- Footer Details -->
+            <div class="pt-4 border-t border-gray-100 flex items-center justify-between">
+                <span class="text-xs text-gray-500 font-medium">PDF Document</span>
+                <a href="{{ doc.file.url }}" target="_blank" class="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 transition">
+                    View PDF <i class="fa-solid fa-arrow-up-right-from-square ml-1.5 text-[10px]"></i>
+                </a>
+            </div>
 
-{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center space-y-4">
+        <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto">
+            <i class="fa-solid fa-folder-open"></i>
+        </div>
+        <div class="max-w-sm mx-auto space-y-1">
+            <h4 class="text-lg font-bold text-gray-900">No Documents Uploaded Yet</h4>
+            <p class="text-xs text-gray-500">
+                Upload your first study document to generate AI-powered summaries and quizzes!
+            </p>
+        </div>
+        <a href="{% url 'documents:upload' %}" class="inline-block px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-md shadow-indigo-100">
+            Upload Your First PDF
+        </a>
+    </div>
+    {% endif %}
 
-</body>
-</html>
+</div>
+{% endblock %}

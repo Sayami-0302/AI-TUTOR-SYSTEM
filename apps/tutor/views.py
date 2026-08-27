@@ -7,13 +7,11 @@ from django.views import View
 from django.utils.decorators import method_decorator
 from .models import TutorSession, ChatMessage
 from apps.documents.models import Document
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import TemplateView
+
 
 def call_groq_api(api_key, user_message, history_messages=None):
     """
     Official Groq SDK caller with dynamic active model discovery.
-    Automatically queries Groq for active chat models to avoid decommissioned model errors.
     """
     system_prompt = (
         "You are Tutor, an elite, encouraging, and highly knowledgeable AI Academic Tutor for college students. "
@@ -32,16 +30,13 @@ def call_groq_api(api_key, user_message, history_messages=None):
 
     client = Groq(api_key=api_key)
 
-    # 1. Dynamically fetch currently active models from Groq API
     candidate_models = []
     try:
         models_data = client.models.list().data
-        # Filter for text chat models (exclude audio/whisper/vision/guard models)
         candidate_models = [
             m.id for m in models_data
             if not any(x in m.id.lower() for x in ['whisper', 'embed', 'guard', 'vision'])
         ]
-        # Prioritize 70b / versatile models
         candidate_models.sort(
             key=lambda name: (
                 0 if '3.3-70b' in name else
@@ -50,14 +45,12 @@ def call_groq_api(api_key, user_message, history_messages=None):
                 3
             )
         )
-        print(f"[Active Groq Models Found]: {candidate_models}")
     except Exception as list_err:
         print(f"[Groq ListModels Note]: {list_err}")
         candidate_models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
 
     last_error = ""
 
-    # 2. Iterate through active candidate models
     for model_name in candidate_models:
         try:
             response = client.chat.completions.create(
@@ -68,16 +61,13 @@ def call_groq_api(api_key, user_message, history_messages=None):
             )
             reply_text = response.choices[0].message.content.strip()
 
-            # Clean any reasoning think tags if using a reasoning model
             if "<think>" in reply_text and "</think>" in reply_text:
                 reply_text = reply_text.split("</think>")[-1].strip()
 
-            print(f"✅ Successfully used Groq model: {model_name}")
             return reply_text
 
         except Exception as e:
             last_error = str(e)
-            print(f"[{model_name} attempt failed]: {last_error}")
             continue
 
     return f"⚠️ **Tutor AI Note**: Could not reach Groq. Details: {last_error}"
@@ -86,10 +76,14 @@ def call_groq_api(api_key, user_message, history_messages=None):
 @method_decorator(login_required, name='dispatch')
 class DashboardView(View):
     def get(self, request):
+        # Fetch live database counts for the student
+        total_docs = Document.objects.filter(owner=request.user).count()
         chat_sessions = TutorSession.objects.filter(user=request.user).count()
+        total_quizzes = 0
+
         context = {
-            'total_docs': 0,
-            'total_quizzes': 0,
+            'total_docs': total_docs,
+            'total_quizzes': total_quizzes,
             'chat_sessions': chat_sessions,
         }
         return render(request, 'tutor/dashboard.html', context)
@@ -107,7 +101,6 @@ class TutorChatView(View):
             if not active_session:
                 active_session = TutorSession.objects.create(user=request.user, title="First Study Session")
 
-        # Clean any old error banners from chat history
         active_session.messages.filter(content__icontains="⚠️").delete()
         active_session.messages.filter(content__icontains="Error communicating").delete()
 
@@ -130,29 +123,23 @@ class TutorChatView(View):
             if not session:
                 session = TutorSession.objects.create(user=request.user, title="New Study Session")
 
-        # 1. Save User Message
         ChatMessage.objects.create(session=session, role='user', content=user_message)
 
-        # 2. Check API Key
         api_key = getattr(settings, 'GROQ_API_KEY', '')
         if not api_key or 'your_actual' in api_key:
             reply = "⚠️ **Missing Groq API Key**: Please configure `GROQ_API_KEY=gsk_...` in your `.env` file."
             return JsonResponse({'reply': reply})
 
-        # 3. Auto-Rename Session Title on first question
         default_titles = ["New Study Session", "First Study Session", "New Chat"]
         if session.title in default_titles:
             summary_title = user_message[:25].capitalize() + ("..." if len(user_message) > 25 else "")
             session.title = summary_title
             session.save()
 
-        # 4. Compile recent context history
         past_messages = list(session.messages.exclude(content__icontains="⚠️").order_by('timestamp'))[-8:]
 
-        # 5. Call Groq
         ai_reply = call_groq_api(api_key, user_message, past_messages)
 
-        # 6. Save AI Response
         if not ai_reply.startswith("⚠️"):
             ChatMessage.objects.create(session=session, role='model', content=ai_reply)
 
@@ -178,20 +165,6 @@ class ClearSessionView(View):
         session.title = "New Chat"
         session.save()
         return JsonResponse({'success': True})
-
-
-@method_decorator(login_required, name='dispatch')
-class DocumentsView(LoginRequiredMixin, TemplateView):
-    template_name = "tutor/documents.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        context["documents"] = Document.objects.filter(
-            owner=self.request.user
-        ).order_by("-uploaded_at")
-
-        return context
 
 
 @method_decorator(login_required, name='dispatch')
