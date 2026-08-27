@@ -22,7 +22,7 @@ class Subject(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subjects')
     name = models.CharField(max_length=200)
-    code = models.CharField(max_length=20, blank=True, help_text="e.g. CS401")
+    code = models.CharField(max_length=50, blank=True, null=True, help_text="e.g. CS401")
     semester = models.IntegerField(choices=SEMESTER_CHOICES, default=7)
     color = models.CharField(max_length=10, choices=COLOR_CHOICES, default='indigo')
     description = models.TextField(blank=True)
@@ -31,7 +31,6 @@ class Subject(models.Model):
 
     class Meta:
         ordering = ['semester', 'name']
-        unique_together = ['user', 'code']
 
     def __str__(self):
         return f"{self.code} - {self.name}" if self.code else self.name
@@ -75,7 +74,7 @@ class StudyTopic(models.Model):
         ordering = ['chapter_number', 'title']
 
     def __str__(self):
-        return f"{self.subject.code}: {self.title}"
+        return f"{self.subject.name}: {self.title}"
 
 
 class StudySession(models.Model):
