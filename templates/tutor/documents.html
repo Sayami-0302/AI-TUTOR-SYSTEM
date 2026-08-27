@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}My Documents | TutorAI{% endblock %}
+{% block header_title %}My Documents{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+        <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
+            <i class="fa-solid fa-file-arrow-up"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 mb-2">No Documents Yet</h2>
+        <p class="text-sm text-gray-500 mb-6">Upload your PDF notes, textbooks, or handouts to generate AI-powered quizzes and summaries.</p>
+        <a href="{% url 'documents:upload' %}"
+            class="inline-block px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition">
+                <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Upload Document
+        </a>
+        <a href="{% url 'documents:list' %}"
+               class="inline-block px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition">
+                <i class="fa-solid fa-file mr-2"></i>
+                View My Documents
+            </a>
+    </div>
+</div>
+{% endblock %}

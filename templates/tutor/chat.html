@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Tutor Space | TutorAI{% endblock %}
+{% block header_title %}AI Tutor Workspace{% endblock %}
+
+{% block content %}
+<!-- Include Marked.js for rendering Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+    /* Styling for rendered Markdown within chat bubbles */
+    .prose-chat p { margin-bottom: 0.5rem; }
+    .prose-chat p:last-child { margin-bottom: 0; }
+    .prose-chat ul, .prose-chat ol { margin-left: 1.25rem; margin-bottom: 0.5rem; list-style-type: disc; }
+    .prose-chat ol { list-style-type: decimal; }
+    .prose-chat li { margin-bottom: 0.25rem; }
+    .prose-chat strong { font-weight: 700; color: inherit; }
+    .prose-chat pre { background: #1e293b; color: #f8fafc; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; font-size: 0.825rem; }
+    .prose-chat code { font-family: monospace; background: rgba(0,0,0,0.06); padding: 0.15rem 0.35rem; border-radius: 0.25rem; }
+    .prose-chat pre code { background: transparent; padding: 0; }
+</style>
+
+<div class="max-w-6xl mx-auto h-[calc(100vh-10rem)] flex bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    
+    <!-- LEFT SIDEBAR: CHAT HISTORY -->
+    <aside class="w-64 border-r border-gray-200 bg-slate-50 flex flex-col h-full flex-shrink-0 hidden md:flex">
+        <!-- New Session Action Button -->
+        <div class="p-4 border-b border-gray-200">
+            <a href="{% url 'new_session' %}" class="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl flex items-center justify-center gap-2 shadow-md shadow-indigo-100 transition active:scale-98">
+                <i class="fa-solid fa-plus text-xs"></i> New Chat
+            </a>
+        </div>
+
+        <!-- Scrollable Session List -->
+        <div class="flex-1 overflow-y-auto p-3 space-y-1">
+            <span class="px-3 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 block mb-2">Past Sessions</span>
+            {% for past in past_sessions %}
+                <a href="{% url 'tutor_chat_session' past.id %}" id="session-link-{{ past.id }}" 
+                   class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition group {% if past.id == active_session.id %}bg-indigo-50 text-indigo-700 border border-indigo-100{% else %}text-gray-600 hover:bg-gray-100 hover:text-gray-900{% endif %}">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <i class="fa-regular fa-comments text-base flex-shrink-0 {% if past.id == active_session.id %}text-indigo-600{% else %}text-gray-400{% endif %}"></i>
+                        <span class="truncate block text-xs font-semibold session-title-text">{{ past.title }}</span>
+                    </div>
+                </a>
+            {% empty %}
+                <p class="text-xs text-gray-400 text-center py-4">No sessions created yet.</p>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <!-- RIGHT CONTAINER: ACTIVE CHAT FRAME -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
+        
+        <!-- Chat Area Header -->
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center space-x-3 min-w-0">
+                <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div class="min-w-0">
+                    <h2 id="active-session-title" class="text-sm font-bold text-gray-800 truncate">{{ active_session.title }}</h2>
+                    <div class="flex items-center space-x-1.5 mt-0.5">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                        <span class="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">Academics Room</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- Mobile New Chat Button -->
+                <a href="{% url 'new_session' %}" class="md:hidden px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i> New
+                </a>
+                <!-- Clear Chat Action Button -->
+                <button onclick="clearChat()" class="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition flex items-center gap-1.5 text-xs font-semibold" title="Clear current messages">
+                    <i class="fa-solid fa-trash-can text-sm"></i> <span class="hidden sm:inline">Clear Chat</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scrollable Messages Window -->
+        <div id="chat-messages" class="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/50">
+            
+            <!-- Default Welcome Message -->
+            <div id="welcome-bubble" class="flex items-start space-x-3 max-w-[85%] {% if chat_messages %}hidden{% endif %}">
+                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                    Tutor
+                </div>
+                <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-sm text-gray-700 leading-relaxed prose-chat">
+                    Hello <strong>{{ user.full_name|default:user.username }}</strong>! I am your AI Academic Tutor. What subject, homework program, mathematical formula, or concept are we researching today?
+                </div>
+            </div>
+
+            <!-- Loop to Render Database Messages -->
+            {% for msg in chat_messages %}
+                {% if msg.role == 'user' %}
+                    <div class="flex items-start space-x-3 max-w-[85%] ml-auto flex-row-reverse space-x-reverse">
+                        <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 uppercase shadow-sm">
+                            {{ user.username|slice:":2" }}
+                        </div>
+                        <div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed whitespace-pre-wrap">
+                            {{ msg.content }}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="flex items-start space-x-3 max-w-[85%]">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                            Tutor
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-sm text-gray-700 leading-relaxed prose-chat markdown-content">
+                            {{ msg.content }}
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Typing Status Indicator -->
+        <div id="typing-indicator" class="hidden px-6 py-3 bg-slate-50/50 border-t border-gray-100 flex items-center space-x-2 text-xs text-gray-500 flex-shrink-0">
+            <i class="fa-solid fa-circle-notch fa-spin text-indigo-600"></i>
+            <span>Tutor is drafting your explanation...</span>
+        </div>
+
+        <!-- Message Input Form Panel -->
+        <div class="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+            <form id="chat-form" class="flex items-center space-x-3">
+                {% csrf_token %}
+                <input type="text" id="user-input" required placeholder="Type your academic question..." 
+                       class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm">
+                <button type="submit" id="send-btn" class="w-12 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center justify-center shadow-md shadow-indigo-100 transition active:scale-95">
+                    <i class="fa-solid fa-paper-plane text-base"></i>
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const chatMessages = document.getElementById('chat-messages');
+    const welcomeBubble = document.getElementById('welcome-bubble');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const sendBtn = document.getElementById('send-btn');
+    const activeTitleHeader = document.getElementById('active-session-title');
+    const currentInitials = "{{ user.username|slice:':2' }}".toUpperCase();
+
+    // Parse Markdown for loaded content on entry
+    document.querySelectorAll('.markdown-content').forEach(el => {
+        el.innerHTML = marked.parse(el.textContent.trim());
+    });
+
+    // Auto-scroll
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    // Clear Chat AJAX handler
+    function clearChat() {
+        if (!confirm("Are you sure you want to clear all messages in this session?")) return;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch("{% url 'clear_session' active_session.id %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Delete user bubble and bot bubbles
+                chatMessages.querySelectorAll('.flex').forEach(el => {
+                    if (el.id !== 'welcome-bubble') el.remove();
+                });
+                welcomeBubble.classList.remove('hidden');
+                activeTitleHeader.textContent = "New Chat";
+                
+                // Update corresponding sidebar item name
+                const activeSidebarItem = document.querySelector("#session-link-{{ active_session.id }} .session-title-text");
+                if (activeSidebarItem) activeSidebarItem.textContent = "New Chat";
+            }
+        })
+        .catch(err => console.error("Error clearing chat:", err));
+    }
+
+    // Submit Message AJAX handler
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const msgVal = userInput.value.trim();
+        if (!msgVal) return;
+
+        // Hide default welcome bubble if visible
+        welcomeBubble.classList.add('hidden');
+
+        // Render user message instantly
+        const userSafe = escapeHtml(msgVal).replace(/\n/g, '<br>');
+        const userHtml = `
+            <div class="flex items-start space-x-3 max-w-[85%] ml-auto flex-row-reverse space-x-reverse">
+                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 uppercase shadow-sm">
+                    ${currentInitials}
+                </div>
+                <div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm text-sm leading-relaxed whitespace-pre-wrap">
+                    ${userSafe}
+                </div>
+            </div>
+        `;
+        chatMessages.insertAdjacentHTML('beforeend', userHtml);
+        userInput.value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // Show typing spinner
+        typingIndicator.classList.remove('hidden');
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('message', msgVal);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+        fetch("{% url 'tutor_chat_session' active_session.id %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            typingIndicator.classList.add('hidden');
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+
+            // Render Markdown reply
+            const botParsed = marked.parse(data.reply);
+            const botHtml = `
+                <div class="flex items-start space-x-3 max-w-[85%]">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                        Tutor
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 text-sm text-gray-700 leading-relaxed prose-chat">
+                        ${botParsed}
+                    </div>
+                </div>
+            `;
+            chatMessages.insertAdjacentHTML('beforeend', botHtml);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Dynamically rename titles in header and sidebar on first question response
+            if (data.session_title) {
+                activeTitleHeader.textContent = data.session_title;
+                const activeSidebarItem = document.querySelector("#session-link-{{ active_session.id }} .session-title-text");
+                if (activeSidebarItem) activeSidebarItem.textContent = data.session_title;
+            }
+        })
+        .catch(err => {
+            typingIndicator.classList.add('hidden');
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            console.error("Fetch Error:", err);
+        });
+    });
+</script>
+{% endblock %}

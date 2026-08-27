@@ -1,25 +1,50 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout, authenticate, get_user_model
 from django.contrib import messages
 from django.views import View
 from .forms import RegistrationForm, LoginForm
 
+User = get_user_model()
+
 
 class RegisterView(View):
     def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('dashboard')
         form = RegistrationForm()
         return render(request, 'accounts/register.html', {'form': form})
 
     def post(self, request):
         form = RegistrationForm(request.POST)
         if form.is_valid():
-            messages.success(request, "Registration Successful!")
+            email = form.cleaned_data['email']
+            username = form.cleaned_data['username']
+            full_name = form.cleaned_data['full_name']
+            password = form.cleaned_data['password']
+
+            if User.objects.filter(email=email).exists():
+                messages.error(request, "Email already exists.")
+                return render(request, 'accounts/register.html', {'form': form})
+
+            if User.objects.filter(username=username).exists():
+                messages.error(request, "Username already exists.")
+                return render(request, 'accounts/register.html', {'form': form})
+
+            User.objects.create_user(
+                email=email,
+                username=username,
+                full_name=full_name,
+                password=password,
+            )
+            messages.success(request, "Registration successful! Please sign in.")
             return redirect('login')
         return render(request, 'accounts/register.html', {'form': form})
 
 
 class LoginView(View):
     def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('dashboard')
         form = LoginForm()
         return render(request, 'accounts/login.html', {'form': form})
 
@@ -31,16 +56,17 @@ class LoginView(View):
             user = authenticate(request, email=email, password=password)
             if user:
                 login(request, user)
-                return redirect('profile')
+                return redirect('dashboard')
             else:
                 messages.error(request, "Invalid email or password.")
         return render(request, 'accounts/login.html', {'form': form})
 
 
-class LogoutView(View):
-    def get(self, request):
-        logout(request)
-        return redirect('login')
+def logout_view(request):
+    """Cleanly terminates the user session and redirects to login"""
+    logout(request)
+    messages.success(request, "You have been logged out successfully.")
+    return redirect('login')
 
 
 class ProfileView(View):
