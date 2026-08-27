@@ -9,15 +9,12 @@ COLOR_PALETTE = ['indigo', 'emerald', 'rose', 'amber', 'sky', 'violet', 'orange'
 
 def prefilter_syllabus_text(raw_text):
     """
-    Smart multi-pass curriculum distiller:
-    Pass 1: Capture all lines with course/subject/unit/elective markers.
-    Pass 2: If elective blocks detected, ensure ALL option lines are captured.
-    Pass 3: Fallback to condensed raw text if too few lines matched.
+    Smart multi-pass curriculum distiller.
+    Captures course titles, unit headers, elective blocks across all pages.
     """
     lines = raw_text.splitlines()
     relevant_lines = []
 
-    # Broad pattern matching curriculum content + electives
     course_pattern = re.compile(
         r'(unit|chapter|module|course|code|credit|semester|hours|part|topic|'
         r'elective|option|choice|specialization|'
@@ -29,7 +26,6 @@ def prefilter_syllabus_text(raw_text):
         re.IGNORECASE
     )
 
-    # Elective-specific pattern to catch option blocks
     elective_pattern = re.compile(
         r'(elective|option|BCE\d{3,4}|choose|any one|any two)',
         re.IGNORECASE
@@ -46,16 +42,13 @@ def prefilter_syllabus_text(raw_text):
         is_course_line = bool(course_pattern.search(cleaned))
         is_elective_line = bool(elective_pattern.search(cleaned))
 
-        # Detect start of elective block
         if is_elective_line and 'elective' in cleaned.lower():
             in_elective_block = True
             elective_buffer = [cleaned]
             continue
 
-        # Inside elective block: capture all option lines
         if in_elective_block:
             elective_buffer.append(cleaned)
-            # End of elective block when we hit a new major heading or empty gap
             if is_course_line and 'elective' not in cleaned.lower() and len(elective_buffer) > 3:
                 relevant_lines.extend(elective_buffer)
                 in_elective_block = False
@@ -67,24 +60,75 @@ def prefilter_syllabus_text(raw_text):
         if is_course_line:
             relevant_lines.append(cleaned)
 
-    # Flush any remaining elective buffer
     if elective_buffer:
         relevant_lines.extend(elective_buffer)
 
-    # Fallback if filter was too aggressive
     if len(relevant_lines) < 25:
         compact_text = re.sub(r'\s+', ' ', raw_text).strip()
         return compact_text[:12000]
 
     filtered_text = "\n".join(relevant_lines)
-    # 12,000 chars is approximately 2,800 tokens (still well under 8,000 TPM with 2,200 max output)
     return filtered_text[:12000]
+
+
+def normalize_topic_title(title):
+    """
+    Strips 'Unit X:', chapter numbers, and detailed descriptions
+    to produce a clean core title for deduplication comparison.
+    Example: 'Unit 1: Introduction to OS – definition, types' -> 'introduction to os'
+    """
+    t = title.strip().lower()
+    # Remove "Unit X:" or "Chapter X:" prefix
+    t = re.sub(r'^(unit|chapter)\s*\d+[:\.\s]*', '', t)
+    # Remove everything after " – " or " - " (detailed descriptions)
+    t = re.sub(r'\s*[–\-]\s*.*$', '', t)
+    # Remove leading numbers like "1." or "1)"
+    t = re.sub(r'^\d+[\.\)]\s*', '', t)
+    return t.strip()
+
+
+def deduplicate_topics(raw_topics):
+    """
+    Removes duplicate topics from AI response.
+    Keeps the LONGEST (most detailed) version of each unique topic.
+    """
+    seen_cores = {}
+
+    for t in raw_topics:
+        if isinstance(t, str):
+            title = t.strip()
+        elif isinstance(t, dict):
+            title = (t.get('title') or t.get('name') or '').strip()
+        else:
+            continue
+
+        if not title:
+            continue
+
+        core = normalize_topic_title(title)
+        if not core:
+            continue
+
+        # Keep the longest (most detailed) version
+        if core not in seen_cores or len(title) > len(seen_cores[core]):
+            seen_cores[core] = title
+
+    # Rebuild clean list
+    clean_topics = []
+    for idx, title in enumerate(seen_cores.values()):
+        clean_topics.append({
+            "title": title,
+            "chapter_number": idx + 1,
+            "difficulty": "medium"
+        })
+
+    return clean_topics
 
 
 def extract_syllabus_with_ai(syllabus_text):
     """
-    Extracts ALL semester subjects including electives and their options.
-    Handles incomplete subjects by requesting comprehensive extraction.
+    Extracts ALL semester subjects including electives.
+    Deduplicates topics within each subject to prevent triple-listing.
     """
     api_key = getattr(settings, 'GROQ_API_KEY', '') or os.getenv('GROQ_API_KEY', '')
     if not api_key:
@@ -92,34 +136,38 @@ def extract_syllabus_with_ai(syllabus_text):
 
     client = Groq(api_key=api_key)
 
-    # 1. Distill curriculum text
     compressed_text = prefilter_syllabus_text(syllabus_text)
 
-    # 2. Comprehensive prompt with elective handling
     system_prompt = (
         "You are an expert university syllabus parser. "
         "Extract EVERY subject from the syllabus including ALL elective options. "
         "A 7th semester engineering syllabus typically has 4-6 core subjects plus 1-3 elective groups. "
-        "For electives: list EACH option as a separate subject with is_elective=true and the elective_group name. "
-        "For core subjects: ensure ALL units are captured, not just the first few. "
-        "Output ONLY valid JSON matching the schema."
+        "For electives: list EACH option as a separate subject with is_elective=true. "
+        "CRITICAL RULES: "
+        "1. Each topic must appear ONLY ONCE per subject. "
+        "2. Use the format 'Unit X: Topic Name – brief description' for each topic. "
+        "3. Do NOT list the same topic in multiple formats. "
+        "4. Do NOT include both short and long versions of the same topic. "
+        "Output ONLY valid JSON."
     )
 
-    user_prompt = f"""Extract ALL subjects (core + electives) and their complete unit topics.
+    user_prompt = f"""Extract ALL subjects (core + electives) with their complete unit topics.
+
+CRITICAL: Each topic must appear EXACTLY ONCE. Use format "Unit X: Name – description".
+Do NOT repeat topics in different formats.
 
 JSON Schema:
 {{
     "subjects": [
         {{
-            "name": "Theory of Computation",
-            "code": "BCE604",
+            "name": "Computer Networks",
+            "code": "BCE603",
             "is_elective": false,
             "elective_group": null,
             "topics": [
-                "Unit 1: Finite Automata and Regular Languages",
-                "Unit 2: Context-Free Grammars and Pushdown Automata",
-                "Unit 3: Turing Machines and Decidability",
-                "Unit 4: Complexity Theory"
+                "Unit 1: Introduction to Computer Network – definition, models, devices",
+                "Unit 2: Physical Layer – capacity, delay, bandwidth",
+                "Unit 3: Data Link Layer – error detection, CRC, HDLC"
             ]
         }},
         {{
@@ -128,37 +176,18 @@ JSON Schema:
             "is_elective": true,
             "elective_group": "Elective-I",
             "topics": [
-                "Unit 1: Introduction to ML and Supervised Learning",
-                "Unit 2: Unsupervised Learning and Clustering",
-                "Unit 3: Neural Networks and Deep Learning"
-            ]
-        }},
-        {{
-            "name": "Data Mining and Data Warehousing",
-            "code": "BCE6800",
-            "is_elective": true,
-            "elective_group": "Elective-I",
-            "topics": [
-                "Unit 1: Data Preprocessing and Exploration",
-                "Unit 2: Association Rule Mining",
-                "Unit 3: Data Warehouse Architecture"
+                "Unit 1: Introduction to ML – supervised learning basics",
+                "Unit 2: Unsupervised Learning – clustering algorithms"
             ]
         }}
     ]
 }}
-
-IMPORTANT:
-- Include ALL core subjects with ALL their units (do not truncate)
-- Include ALL elective options as separate subjects
-- Each elective option gets its own entry with the same elective_group name
-- If a subject has 4-5 units, list ALL of them
 
 Syllabus Text:
 ---
 {compressed_text}
 ---"""
 
-    # 3. Discover active models
     candidate_models = []
     try:
         models_data = client.models.list().data
@@ -193,7 +222,6 @@ Syllabus Text:
             )
             raw_content = response.choices[0].message.content.strip()
 
-            # Strip markdown wrappers
             if "```" in raw_content:
                 match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_content, re.DOTALL)
                 if match:
@@ -201,7 +229,6 @@ Syllabus Text:
 
             parsed = json.loads(raw_content)
 
-            # Normalize parsed structure
             normalized_subjects = []
             raw_subjects = parsed.get('subjects') or parsed.get('s') or []
 
@@ -212,20 +239,8 @@ Syllabus Text:
                 elective_group = subj.get('elective_group') or subj.get('eg') or None
                 raw_topics = subj.get('topics') or subj.get('t') or []
 
-                topics_list = []
-                for idx, t in enumerate(raw_topics):
-                    if isinstance(t, str):
-                        topics_list.append({
-                            "title": t.strip(),
-                            "chapter_number": idx + 1,
-                            "difficulty": "medium"
-                        })
-                    elif isinstance(t, dict):
-                        topics_list.append({
-                            "title": (t.get('title') or t.get('name') or f"Unit {idx+1}").strip(),
-                            "chapter_number": t.get('chapter_number', idx + 1),
-                            "difficulty": t.get('difficulty', 'medium')
-                        })
+                # DEDUPLICATE topics within this subject
+                clean_topics = deduplicate_topics(raw_topics)
 
                 if name.strip():
                     normalized_subjects.append({
@@ -234,18 +249,19 @@ Syllabus Text:
                         "description": f"Curriculum for {name.strip()}",
                         "is_elective": bool(is_elective),
                         "elective_group": elective_group.strip() if elective_group else None,
-                        "topics": topics_list
+                        "topics": clean_topics
                     })
 
             if normalized_subjects:
                 core_count = sum(1 for s in normalized_subjects if not s['is_elective'])
                 elective_count = sum(1 for s in normalized_subjects if s['is_elective'])
-                print(f"✅ [Syllabus Success]: Extracted {core_count} core + {elective_count} elective subjects with model '{model_name}'")
+                total_topics = sum(len(s['topics']) for s in normalized_subjects)
+                print(f"✅ [Syllabus]: {core_count} core + {elective_count} elective subjects, {total_topics} unique topics (model: {model_name})")
                 return {"semester": 7, "subjects": normalized_subjects}
 
         except Exception as e:
             last_err = e
-            print(f"[Syllabus Parser: '{model_name}' failed]: {e}")
+            print(f"[Syllabus Parser '{model_name}' failed]: {e}")
             continue
 
     raise Exception(f"Syllabus extraction failed: {str(last_err)}")

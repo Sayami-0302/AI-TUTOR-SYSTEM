@@ -1,4 +1,5 @@
 from datetime import date
+import re
 import pymupdf
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -8,14 +9,13 @@ from django.contrib import messages
 from django.db.models import Sum
 from .models import Subject, StudyTopic, StudySession, DailyStreak
 from .forms import SubjectForm, StudyTopicForm
-from .services import extract_syllabus_with_ai, COLOR_PALETTE
+from .services import extract_syllabus_with_ai, normalize_topic_title, COLOR_PALETTE
 from apps.documents.models import Document
 from apps.tutor.models import TutorSession
 
 
 @method_decorator(login_required, name='dispatch')
 class StudyHubView(View):
-    """Main 4-tab Study Hub dashboard."""
     def get(self, request):
         tab = request.GET.get('tab', 'overview')
         user = request.user
@@ -32,10 +32,7 @@ class StudyHubView(View):
         chat_sessions = TutorSession.objects.filter(user=user).count()
 
         streak, _ = DailyStreak.objects.get_or_create(user=user)
-
-        upcoming_exams = subjects.filter(
-            exam_date__gte=date.today()
-        ).order_by('exam_date')[:3]
+        upcoming_exams = subjects.filter(exam_date__gte=date.today()).order_by('exam_date')[:3]
 
         context = {
             'tab': tab,
@@ -53,9 +50,30 @@ class StudyHubView(View):
         return render(request, 'study/hub.html', context)
 
 
+def is_duplicate_topic(new_title, existing_titles_normalized):
+    """
+    Smart fuzzy deduplication:
+    Checks if new_title's core matches any existing topic's core.
+    Uses substring containment so 'Unit 1: OS' matches 'OS – definition'.
+    """
+    new_core = normalize_topic_title(new_title)
+    if not new_core or len(new_core) < 3:
+        return False
+
+    for existing_core in existing_titles_normalized:
+        # Exact core match
+        if new_core == existing_core:
+            return True
+        # Substring match (one contains the other)
+        if len(new_core) > 5 and len(existing_core) > 5:
+            if new_core in existing_core or existing_core in new_core:
+                return True
+
+    return False
+
+
 @method_decorator(login_required, name='dispatch')
 class ImportSemesterSyllabusView(View):
-    """Extracts all subjects including electives from syllabus PDF."""
     def post(self, request):
         doc_id = request.POST.get('document_id')
         if not doc_id:
@@ -64,7 +82,6 @@ class ImportSemesterSyllabusView(View):
 
         document = get_object_or_404(Document, id=doc_id, owner=request.user)
 
-        # 1. Extract text
         extracted_text = ""
         try:
             if hasattr(document, 'content') and document.content.text:
@@ -74,21 +91,19 @@ class ImportSemesterSyllabusView(View):
                 for page in doc_pdf:
                     extracted_text += page.get_text() + "\n"
         except Exception as read_err:
-            messages.error(request, f"Could not read text from document: {str(read_err)}")
+            messages.error(request, f"Could not read document: {str(read_err)}")
             return redirect('/study/?tab=subjects')
 
         if not extracted_text.strip():
-            messages.error(request, "The selected document appears to be empty.")
+            messages.error(request, "Document appears empty.")
             return redirect('/study/?tab=subjects')
 
-        # 2. AI extraction
         try:
             syllabus_data = extract_syllabus_with_ai(extracted_text)
         except Exception as ai_err:
-            messages.error(request, f"AI Syllabus Extraction failed: {str(ai_err)}")
+            messages.error(request, f"AI Extraction failed: {str(ai_err)}")
             return redirect('/study/?tab=subjects')
 
-        # 3. Deduplication and sync
         semester = syllabus_data.get('semester', 7)
         subjects_list = syllabus_data.get('subjects', [])
 
@@ -110,13 +125,19 @@ class ImportSemesterSyllabusView(View):
 
             color = COLOR_PALETTE[idx % len(COLOR_PALETTE)]
 
-            # Check if subject already exists
             existing = Subject.objects.filter(user=request.user, name__iexact=name).first()
 
             if existing:
-                existing_titles = {t.title.strip().lower() for t in existing.topics.all()}
-                incoming_titles = [t.get('title', '').strip() for t in topics_data if t.get('title', '').strip()]
-                missing = [t for t in topics_data if t.get('title', '').strip() and t.get('title', '').strip().lower() not in existing_titles]
+                # Get normalized existing topic titles for fuzzy matching
+                existing_normalized = {
+                    normalize_topic_title(t.title) for t in existing.topics.all()
+                }
+
+                missing = []
+                for td in topics_data:
+                    title = td.get('title', '').strip() if isinstance(td, dict) else str(td).strip()
+                    if title and not is_duplicate_topic(title, existing_normalized):
+                        missing.append(td)
 
                 if not missing:
                     skipped_subjects += 1
@@ -124,11 +145,12 @@ class ImportSemesterSyllabusView(View):
 
                 current_ch = existing.topics.count()
                 for t_idx, td in enumerate(missing):
+                    title = td.get('title', '').strip() if isinstance(td, dict) else str(td).strip()
                     StudyTopic.objects.create(
                         subject=existing,
-                        title=td.get('title', '').strip(),
+                        title=title,
                         chapter_number=current_ch + t_idx + 1,
-                        difficulty=td.get('difficulty', 'medium'),
+                        difficulty=td.get('difficulty', 'medium') if isinstance(td, dict) else 'medium',
                         status='not_started'
                     )
                     created_topics += 1
@@ -147,20 +169,19 @@ class ImportSemesterSyllabusView(View):
                 created_subjects += 1
 
                 for t_idx, td in enumerate(topics_data):
-                    title = td.get('title', '').strip()
+                    title = td.get('title', '').strip() if isinstance(td, dict) else str(td).strip()
                     if title:
                         StudyTopic.objects.create(
                             subject=new_subj,
                             title=title,
-                            chapter_number=td.get('chapter_number', t_idx + 1),
-                            difficulty=td.get('difficulty', 'medium'),
+                            chapter_number=td.get('chapter_number', t_idx + 1) if isinstance(td, dict) else t_idx + 1,
+                            difficulty=td.get('difficulty', 'medium') if isinstance(td, dict) else 'medium',
                             status='not_started'
                         )
                         created_topics += 1
 
-        # 4. Feedback
         if created_subjects == 0 and created_topics == 0 and skipped_subjects > 0:
-            messages.info(request, f"ℹ️ All {skipped_subjects} subjects already up-to-date. Nothing new added.")
+            messages.info(request, f"ℹ️ All {skipped_subjects} subjects already up-to-date.")
         else:
             parts = []
             if created_subjects > 0:
@@ -170,7 +191,7 @@ class ImportSemesterSyllabusView(View):
             if created_topics > 0:
                 parts.append(f"{created_topics} new topics")
             if skipped_subjects > 0:
-                parts.append(f"{skipped_subjects} skipped (identical)")
+                parts.append(f"{skipped_subjects} skipped")
             messages.success(request, "🎉 " + ", ".join(parts) + ".")
 
         return redirect('/study/?tab=subjects')
