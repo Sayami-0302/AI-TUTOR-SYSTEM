@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+
+{% block title %}Study Hub | TutorAI{% endblock %}
+{% block header_title %}AI Study Hub{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Tab Navigation -->
+    <div class="flex items-center bg-white border border-gray-200 rounded-2xl p-1.5 shadow-sm overflow-x-auto">
+        <a href="?tab=overview" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap {% if tab == 'overview' %}bg-indigo-600 text-white shadow-md{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            <i class="fa-solid fa-chart-pie"></i> Overview
+        </a>
+        <a href="?tab=subjects" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap {% if tab == 'subjects' %}bg-indigo-600 text-white shadow-md{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            <i class="fa-solid fa-book"></i> Subjects
+        </a>
+        <a href="?tab=study" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap {% if tab == 'study' %}bg-indigo-600 text-white shadow-md{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            <i class="fa-solid fa-pen-to-square"></i> Study
+        </a>
+        <a href="?tab=progress" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition whitespace-nowrap {% if tab == 'progress' %}bg-indigo-600 text-white shadow-md{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            <i class="fa-solid fa-trophy"></i> Progress
+        </a>
+    </div>
+
+    <!-- ==================== TAB 1: OVERVIEW ==================== -->
+    {% if tab == 'overview' %}
+    <div class="space-y-6">
+
+        <!-- Streak & XP Banner -->
+        <div class="bg-gradient-to-r from-indigo-700 via-indigo-800 to-violet-900 rounded-2xl p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-3xl backdrop-blur-sm">
+                    🔥
+                </div>
+                <div>
+                    <h2 class="text-2xl font-extrabold">{{ streak.current_streak }} Day Streak!</h2>
+                    <p class="text-indigo-200 text-sm">Keep studying daily to maintain your streak</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="text-center">
+                    <p class="text-3xl font-extrabold">{{ streak.total_xp }}</p>
+                    <p class="text-xs text-indigo-200 font-semibold uppercase">Total XP</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-3xl font-extrabold">Lv.{{ streak.level }}</p>
+                    <p class="text-xs text-indigo-200 font-semibold uppercase">Level</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl border border-gray-200 p-5 text-center shadow-sm">
+                <p class="text-3xl font-extrabold text-indigo-600">{{ subjects|length }}</p>
+                <p class="text-xs text-gray-500 font-semibold uppercase mt-1">Subjects</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-200 p-5 text-center shadow-sm">
+                <p class="text-3xl font-extrabold text-emerald-600">{{ mastered_topics }}/{{ total_topics }}</p>
+                <p class="text-xs text-gray-500 font-semibold uppercase mt-1">Topics Mastered</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-200 p-5 text-center shadow-sm">
+                <p class="text-3xl font-extrabold text-sky-600">{{ total_documents }}</p>
+                <p class="text-xs text-gray-500 font-semibold uppercase mt-1">Documents</p>
+            </div>
+            <div class="bg-white rounded-2xl border border-gray-200 p-5 text-center shadow-sm">
+                <p class="text-3xl font-extrabold text-amber-600">{{ total_study_hours }}h</p>
+                <p class="text-xs text-gray-500 font-semibold uppercase mt-1">Study Time</p>
+            </div>
+        </div>
+
+        <!-- Exam Countdown -->
+        {% if upcoming_exams %}
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-calendar-days text-rose-500"></i> Upcoming Exams
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {% for exam in upcoming_exams %}
+                <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-bold text-gray-900 text-sm">{{ exam.name }}</p>
+                        <p class="text-xs text-gray-500">{{ exam.exam_date|date:"M d, Y" }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-extrabold text-rose-600">
+                            {% widthratio exam.exam_date|timeuntil:today 1 1 %}
+                        </p>
+                        <p class="text-xs text-rose-500 font-semibold">days left</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'tutor_chat' %}" class="bg-white border border-gray-200 rounded-2xl p-6 hover:border-indigo-400 transition shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-robot"></i></div>
+                <div>
+                    <p class="font-bold text-gray-900">Chat with AI Tutor</p>
+                    <p class="text-xs text-gray-500">Ask questions about any topic</p>
+                </div>
+            </a>
+            <a href="{% url 'documents:list' %}" class="bg-white border border-gray-200 rounded-2xl p-6 hover:border-emerald-400 transition shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-file-pdf"></i></div>
+                <div>
+                    <p class="font-bold text-gray-900">Upload Study Notes</p>
+                    <p class="text-xs text-gray-500">Add PDFs to your library</p>
+                </div>
+            </a>
+            <a href="?tab=subjects" class="bg-white border border-gray-200 rounded-2xl p-6 hover:border-amber-400 transition shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-book"></i></div>
+                <div>
+                    <p class="font-bold text-gray-900">Manage Subjects</p>
+                    <p class="text-xs text-gray-500">Add syllabus & track progress</p>
+                </div>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ==================== TAB 2: SUBJECTS ==================== -->
+    {% if tab == 'subjects' %}
+    <div class="space-y-6">
+
+        <!-- Add Subject Form -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-plus-circle text-indigo-600"></i> Add New Subject
+            </h3>
+            <form method="POST" action="{% url 'subject_add' %}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Subject Name *</label>
+                    <input type="text" name="name" required placeholder="e.g. Operating Systems"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Course Code</label>
+                    <input type="text" name="code" placeholder="e.g. CS401"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Color</label>
+                    <select name="color" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                        <option value="indigo">Indigo</option>
+                        <option value="emerald">Emerald</option>
+                        <option value="rose">Rose</option>
+                        <option value="amber">Amber</option>
+                        <option value="sky">Sky</option>
+                        <option value="violet">Violet</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Semester</label>
+                    <select name="semester" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                        <option value="7" selected>Semester 7</option>
+                        <option value="8">Semester 8</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Exam Date</label>
+                    <input type="date" name="exam_date"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-md flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Add Subject
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Subject Cards -->
+        {% if subjects %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% for subj in subjects %}
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition">
+                <!-- Subject Header -->
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm
+                            {% if subj.color == 'indigo' %}bg-indigo-600
+                            {% elif subj.color == 'emerald' %}bg-emerald-600
+                            {% elif subj.color == 'rose' %}bg-rose-600
+                            {% elif subj.color == 'amber' %}bg-amber-600
+                            {% elif subj.color == 'sky' %}bg-sky-600
+                            {% elif subj.color == 'violet' %}bg-violet-600
+                            {% else %}bg-indigo-600{% endif %}">
+                            {{ subj.code|slice:":2"|default:subj.name|slice:":2" }}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900">{{ subj.name }}</h4>
+                            <p class="text-xs text-gray-500">{{ subj.code }} · Sem {{ subj.semester }}</p>
+                        </div>
+                    </div>
+                    <form method="POST" action="{% url 'subject_delete' subj.id %}" onsubmit="return confirm('Delete this subject?');">
+                        {% csrf_token %}
+                        <button type="submit" class="p-2 text-gray-300 hover:text-rose-500 transition"><i class="fa-regular fa-trash-can"></i></button>
+                    </form>
+                </div>
+
+                <!-- Mastery Bar -->
+                <div class="px-5 py-3 bg-gray-50">
+                    <div class="flex items-center justify-between text-xs font-semibold text-gray-600 mb-1">
+                        <span>Mastery</span>
+                        <span>{{ subj.mastery_percentage }}%</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all
+                            {% if subj.mastery_percentage >= 80 %}bg-emerald-500
+                            {% elif subj.mastery_percentage >= 50 %}bg-amber-500
+                            {% else %}bg-rose-500{% endif %}"
+                            style="width: {{ subj.mastery_percentage }}%"></div>
+                    </div>
+                </div>
+
+                <!-- Topics List -->
+                <div class="p-5 space-y-2 max-h-48 overflow-y-auto">
+                    {% for topic in subj.topics.all %}
+                    <div class="flex items-center justify-between py-1.5">
+                        <div class="flex items-center gap-2">
+                            {% if topic.status == 'mastered' %}
+                                <i class="fa-solid fa-circle-check text-emerald-500 text-sm"></i>
+                            {% elif topic.status == 'learning' %}
+                                <i class="fa-solid fa-circle-half-stroke text-amber-500 text-sm"></i>
+                            {% elif topic.status == 'revising' %}
+                                <i class="fa-solid fa-rotate text-sky-500 text-sm"></i>
+                            {% else %}
+                                <i class="fa-regular fa-circle text-gray-300 text-sm"></i>
+                            {% endif %}
+                            <span class="text-sm text-gray-700">{{ topic.title }}</span>
+                        </div>
+                        <form method="POST" action="{% url 'topic_status' topic.id %}" class="m-0">
+                            {% csrf_token %}
+                            <select name="status" onchange="this.form.submit()" class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none">
+                                <option value="not_started" {% if topic.status == 'not_started' %}selected{% endif %}>Not Started</option>
+                                <option value="learning" {% if topic.status == 'learning' %}selected{% endif %}>Learning</option>
+                                <option value="revising" {% if topic.status == 'revising' %}selected{% endif %}>Revising</option>
+                                <option value="mastered" {% if topic.status == 'mastered' %}selected{% endif %}>Mastered</option>
+                            </select>
+                        </form>
+                    </div>
+                    {% empty %}
+                    <p class="text-xs text-gray-400 text-center py-2">No topics added yet</p>
+                    {% endfor %}
+                </div>
+
+                <!-- Add Topic Form -->
+                <div class="px-5 pb-5">
+                    <form method="POST" action="{% url 'topic_add' subj.id %}" class="flex gap-2">
+                        {% csrf_token %}
+                        <input type="text" name="title" required placeholder="Add a topic..."
+                               class="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                        <input type="hidden" name="chapter_number" value="{{ subj.topics.count|add:1 }}">
+                        <input type="hidden" name="difficulty" value="medium">
+                        <input type="hidden" name="status" value="not_started">
+                        <button type="submit" class="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-bold hover:bg-indigo-100 transition">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <h4 class="text-lg font-bold text-gray-900">No Subjects Added Yet</h4>
+            <p class="text-sm text-gray-500 mt-1">Add your 7th semester subjects above to start tracking your progress!</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ==================== TAB 3: STUDY ==================== -->
+    {% if tab == 'study' %}
+    <div class="space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900">Study Workspace</h3>
+            <p class="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                Your AI-powered study tools will appear here in Sprint 2: Chat with Notes, AI Quiz Generator, and Smart Flashcards.
+            </p>
+            <div class="flex items-center justify-center gap-4 mt-6">
+                <a href="{% url 'tutor_chat' %}" class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition">
+                    <i class="fa-solid fa-robot mr-2"></i> Open AI Tutor
+                </a>
+                <a href="{% url 'documents:list' %}" class="px-5 py-2.5 bg-gray-100 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-200 transition">
+                    <i class="fa-solid fa-file-pdf mr-2"></i> My Documents
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ==================== TAB 4: PROGRESS ==================== -->
+    {% if tab == 'progress' %}
+    <div class="space-y-6">
+        <div class="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+            <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900">Progress & Analytics</h3>
+            <p class="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                Forgetting Curve Dashboard, Weekly Reports, and Performance Analytics will be built in Sprint 4 & 5.
+            </p>
+            <div class="grid grid-cols-3 gap-4 mt-6 max-w-md mx-auto">
+                <div class="bg-indigo-50 rounded-xl p-3">
+                    <p class="text-2xl font-extrabold text-indigo-600">{{ streak.current_streak }}</p>
+                    <p class="text-xs text-gray-500">Day Streak</p>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-3">
+                    <p class="text-2xl font-extrabold text-emerald-600">{{ mastered_topics }}</p>
+                    <p class="text-xs text-gray-500">Mastered</p>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-3">
+                    <p class="text-2xl font-extrabold text-amber-600">{{ streak.total_xp }}</p>
+                    <p class="text-xs text-gray-500">Total XP</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

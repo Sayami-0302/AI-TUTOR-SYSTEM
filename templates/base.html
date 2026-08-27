@@ -42,6 +42,9 @@
                 <a href="{% url 'documents:list' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition {% if 'documents' in request.path %}bg-indigo-600 text-white shadow-md shadow-indigo-600/30{% else %}text-gray-300 hover:bg-slate-800 hover:text-white{% endif %}">
                     <i class="fa-solid fa-file-invoice mr-3 text-lg w-5 text-center"></i> My Documents
                 </a>
+                <a href="{% url 'study_hub' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition {% if 'study' in request.path %}bg-indigo-600 text-white shadow-md shadow-indigo-600/30{% else %}text-gray-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-brain mr-3 text-lg w-5 text-center"></i> Study Hub
+                </a>
                 <a href="{% url 'quizzes' %}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition {% if 'quizzes' in request.path %}bg-indigo-600 text-white shadow-md shadow-indigo-600/30{% else %}text-gray-300 hover:bg-slate-800 hover:text-white{% endif %}">
                     <i class="fa-solid fa-lightbulb mr-3 text-lg w-5 text-center"></i> Quizzes
                 </a>
