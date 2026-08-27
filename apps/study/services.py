@@ -9,44 +9,82 @@ COLOR_PALETTE = ['indigo', 'emerald', 'rose', 'amber', 'sky', 'violet', 'orange'
 
 def prefilter_syllabus_text(raw_text):
     """
-    Python-only smart curriculum distiller:
-    Scans the entire PDF (all pages) and extracts lines containing
-    course codes, subject names, and unit headers across all courses.
+    Smart multi-pass curriculum distiller:
+    Pass 1: Capture all lines with course/subject/unit/elective markers.
+    Pass 2: If elective blocks detected, ensure ALL option lines are captured.
+    Pass 3: Fallback to condensed raw text if too few lines matched.
     """
     lines = raw_text.splitlines()
     relevant_lines = []
 
-    # Patterns matching course titles, codes, units, and curriculum markers
+    # Broad pattern matching curriculum content + electives
     course_pattern = re.compile(
-        r'(\b(course|subject|code|credit|unit|chapter|module|part)\b|'
-        r'^[A-Z]{2,4}\s*\d{3}|'
-        r'\b(I|II|III|IV|V|VI|VII|VIII|IX|X)\.\s|'
-        r'^\d+\.\s+[A-Z]|'
-        r'(operating|database|network|software|cloud|security|compiler|web|intelligence|system|theory|graphics|algorithm))',
+        r'(unit|chapter|module|course|code|credit|semester|hours|part|topic|'
+        r'elective|option|choice|specialization|'
+        r'algorithm|system|management|network|data|software|engineering|design|theory|'
+        r'programming|analysis|architecture|computation|automata|mining|machine|'
+        r'multimedia|warehousing|learning|computing|'
+        r'\bBCE\d{3,4}\b|\bCS\d{3,4}\b|\bIT\d{3,4}\b|\bEC\d{3,4}\b|'
+        r'\b[I|V|X]+\.\s|^\d+\.\s+[A-Z])',
         re.IGNORECASE
     )
 
+    # Elective-specific pattern to catch option blocks
+    elective_pattern = re.compile(
+        r'(elective|option|BCE\d{3,4}|choose|any one|any two)',
+        re.IGNORECASE
+    )
+
+    in_elective_block = False
+    elective_buffer = []
+
     for line in lines:
         cleaned = line.strip()
-        if len(cleaned) < 3 or cleaned.isdigit():
+        if len(cleaned) < 2 or cleaned.isdigit():
             continue
-        if course_pattern.search(cleaned):
+
+        is_course_line = bool(course_pattern.search(cleaned))
+        is_elective_line = bool(elective_pattern.search(cleaned))
+
+        # Detect start of elective block
+        if is_elective_line and 'elective' in cleaned.lower():
+            in_elective_block = True
+            elective_buffer = [cleaned]
+            continue
+
+        # Inside elective block: capture all option lines
+        if in_elective_block:
+            elective_buffer.append(cleaned)
+            # End of elective block when we hit a new major heading or empty gap
+            if is_course_line and 'elective' not in cleaned.lower() and len(elective_buffer) > 3:
+                relevant_lines.extend(elective_buffer)
+                in_elective_block = False
+                elective_buffer = []
+                if is_course_line:
+                    relevant_lines.append(cleaned)
+            continue
+
+        if is_course_line:
             relevant_lines.append(cleaned)
 
-    # If the filter was too aggressive, fallback to condensed raw text
-    if len(relevant_lines) < 20:
+    # Flush any remaining elective buffer
+    if elective_buffer:
+        relevant_lines.extend(elective_buffer)
+
+    # Fallback if filter was too aggressive
+    if len(relevant_lines) < 25:
         compact_text = re.sub(r'\s+', ' ', raw_text).strip()
-        return compact_text[:8000]
+        return compact_text[:12000]
 
     filtered_text = "\n".join(relevant_lines)
-    # 8,000 characters is ~1,800 tokens (plenty of room for 6-8 subjects within 8k TPM limit)
-    return filtered_text[:8500]
+    # 12,000 chars is approximately 2,800 tokens (still well under 8,000 TPM with 2,200 max output)
+    return filtered_text[:12000]
 
 
 def extract_syllabus_with_ai(syllabus_text):
     """
-    Extracts ALL semester subjects and topics from syllabus text.
-    Strictly outputs compact JSON containing the complete multi-subject curriculum.
+    Extracts ALL semester subjects including electives and their options.
+    Handles incomplete subjects by requesting comprehensive extraction.
     """
     api_key = getattr(settings, 'GROQ_API_KEY', '') or os.getenv('GROQ_API_KEY', '')
     if not api_key:
@@ -54,41 +92,73 @@ def extract_syllabus_with_ai(syllabus_text):
 
     client = Groq(api_key=api_key)
 
-    # 1. Distill curriculum text from all pages
+    # 1. Distill curriculum text
     compressed_text = prefilter_syllabus_text(syllabus_text)
 
-    # 2. Dense instruction emphasizing ALL subjects
+    # 2. Comprehensive prompt with elective handling
     system_prompt = (
-        "You are an academic university curriculum parser. "
-        "Your job is to extract EVERY SINGLE subject and its units from the provided syllabus text. "
-        "A college engineering semester typically has 4 to 8 subjects. You must include ALL of them. "
-        "Output ONLY a raw, valid JSON object following the schema. No conversation."
+        "You are an expert university syllabus parser. "
+        "Extract EVERY subject from the syllabus including ALL elective options. "
+        "A 7th semester engineering syllabus typically has 4-6 core subjects plus 1-3 elective groups. "
+        "For electives: list EACH option as a separate subject with is_elective=true and the elective_group name. "
+        "For core subjects: ensure ALL units are captured, not just the first few. "
+        "Output ONLY valid JSON matching the schema."
     )
 
-    user_prompt = f"""Extract ALL subjects and their respective unit topics from this university syllabus.
+    user_prompt = f"""Extract ALL subjects (core + electives) and their complete unit topics.
 
 JSON Schema:
 {{
     "subjects": [
         {{
-            "name": "Operating Systems",
-            "code": "CS401",
-            "topics": ["Unit 1: Process Management", "Unit 2: CPU Scheduling", "Unit 3: Deadlocks", "Unit 4: Memory Management"]
+            "name": "Theory of Computation",
+            "code": "BCE604",
+            "is_elective": false,
+            "elective_group": null,
+            "topics": [
+                "Unit 1: Finite Automata and Regular Languages",
+                "Unit 2: Context-Free Grammars and Pushdown Automata",
+                "Unit 3: Turing Machines and Decidability",
+                "Unit 4: Complexity Theory"
+            ]
         }},
         {{
-            "name": "Database Management Systems",
-            "code": "CS402",
-            "topics": ["Unit 1: ER Model", "Unit 2: Relational Algebra", "Unit 3: SQL & Normalization", "Unit 4: Transaction Management"]
+            "name": "Machine Learning",
+            "code": "BCE6804",
+            "is_elective": true,
+            "elective_group": "Elective-I",
+            "topics": [
+                "Unit 1: Introduction to ML and Supervised Learning",
+                "Unit 2: Unsupervised Learning and Clustering",
+                "Unit 3: Neural Networks and Deep Learning"
+            ]
+        }},
+        {{
+            "name": "Data Mining and Data Warehousing",
+            "code": "BCE6800",
+            "is_elective": true,
+            "elective_group": "Elective-I",
+            "topics": [
+                "Unit 1: Data Preprocessing and Exploration",
+                "Unit 2: Association Rule Mining",
+                "Unit 3: Data Warehouse Architecture"
+            ]
         }}
     ]
 }}
 
-Syllabus Content:
+IMPORTANT:
+- Include ALL core subjects with ALL their units (do not truncate)
+- Include ALL elective options as separate subjects
+- Each elective option gets its own entry with the same elective_group name
+- If a subject has 4-5 units, list ALL of them
+
+Syllabus Text:
 ---
 {compressed_text}
 ---"""
 
-    # 3. Discover active model dynamically
+    # 3. Discover active models
     candidate_models = []
     try:
         models_data = client.models.list().data
@@ -118,12 +188,12 @@ Syllabus Content:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.1,
-                max_tokens=2200,  # Room for 6-8 subjects and 40+ topics
+                max_tokens=3000,
                 response_format={"type": "json_object"}
             )
             raw_content = response.choices[0].message.content.strip()
 
-            # Strip markdown wrappers if present
+            # Strip markdown wrappers
             if "```" in raw_content:
                 match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_content, re.DOTALL)
                 if match:
@@ -138,6 +208,8 @@ Syllabus Content:
             for subj in raw_subjects:
                 name = subj.get('name') or subj.get('n') or ''
                 code = subj.get('code') or subj.get('c') or ''
+                is_elective = subj.get('is_elective', False)
+                elective_group = subj.get('elective_group') or subj.get('eg') or None
                 raw_topics = subj.get('topics') or subj.get('t') or []
 
                 topics_list = []
@@ -160,11 +232,15 @@ Syllabus Content:
                         "name": name.strip(),
                         "code": code.strip() if code else None,
                         "description": f"Curriculum for {name.strip()}",
+                        "is_elective": bool(is_elective),
+                        "elective_group": elective_group.strip() if elective_group else None,
                         "topics": topics_list
                     })
 
             if normalized_subjects:
-                print(f"✅ [Syllabus Success]: Extracted {len(normalized_subjects)} complete subjects with model '{model_name}'")
+                core_count = sum(1 for s in normalized_subjects if not s['is_elective'])
+                elective_count = sum(1 for s in normalized_subjects if s['is_elective'])
+                print(f"✅ [Syllabus Success]: Extracted {core_count} core + {elective_count} elective subjects with model '{model_name}'")
                 return {"semester": 7, "subjects": normalized_subjects}
 
         except Exception as e:

@@ -22,18 +22,22 @@ class Subject(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subjects')
     name = models.CharField(max_length=200)
-    code = models.CharField(max_length=50, blank=True, null=True, help_text="e.g. CS401")
+    code = models.CharField(max_length=50, blank=True, null=True, help_text="e.g. CS401 or BCE6804")
     semester = models.IntegerField(choices=SEMESTER_CHOICES, default=7)
     color = models.CharField(max_length=10, choices=COLOR_CHOICES, default='indigo')
     description = models.TextField(blank=True)
     exam_date = models.DateField(null=True, blank=True, help_text="Exam countdown target")
+    is_elective = models.BooleanField(default=False, help_text="True if this is an elective course")
+    elective_group = models.CharField(max_length=50, blank=True, null=True, help_text="e.g. Elective-I, Elective-II")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['semester', 'name']
 
     def __str__(self):
-        return f"{self.code} - {self.name}" if self.code else self.name
+        prefix = f"[{self.elective_group}] " if self.is_elective and self.elective_group else ""
+        code_str = f"{self.code} - " if self.code else ""
+        return f"{prefix}{code_str}{self.name}"
 
     def topic_count(self):
         return self.topics.count()

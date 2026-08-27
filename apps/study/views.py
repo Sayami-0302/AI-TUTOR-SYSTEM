@@ -20,7 +20,6 @@ class StudyHubView(View):
         tab = request.GET.get('tab', 'overview')
         user = request.user
 
-        # Global stats
         subjects = Subject.objects.filter(user=user)
         user_documents = Document.objects.filter(owner=user)
         total_topics = StudyTopic.objects.filter(subject__user=user).count()
@@ -32,10 +31,8 @@ class StudyHubView(View):
         )['total'] or 0
         chat_sessions = TutorSession.objects.filter(user=user).count()
 
-        # Streak data
         streak, _ = DailyStreak.objects.get_or_create(user=user)
 
-        # Upcoming Exams
         upcoming_exams = subjects.filter(
             exam_date__gte=date.today()
         ).order_by('exam_date')[:3]
@@ -58,10 +55,7 @@ class StudyHubView(View):
 
 @method_decorator(login_required, name='dispatch')
 class ImportSemesterSyllabusView(View):
-    """
-    Extracts all subjects & topics from an uploaded syllabus PDF using AI.
-    Deduplicates and skips any subjects whose topics already match existing records.
-    """
+    """Extracts all subjects including electives from syllabus PDF."""
     def post(self, request):
         doc_id = request.POST.get('document_id')
         if not doc_id:
@@ -70,7 +64,7 @@ class ImportSemesterSyllabusView(View):
 
         document = get_object_or_404(Document, id=doc_id, owner=request.user)
 
-        # 1. Extract raw text from document
+        # 1. Extract text
         extracted_text = ""
         try:
             if hasattr(document, 'content') and document.content.text:
@@ -84,29 +78,31 @@ class ImportSemesterSyllabusView(View):
             return redirect('/study/?tab=subjects')
 
         if not extracted_text.strip():
-            messages.error(request, "The selected document appears to be empty or contains no readable text.")
+            messages.error(request, "The selected document appears to be empty.")
             return redirect('/study/?tab=subjects')
 
-        # 2. Call AI parser service
+        # 2. AI extraction
         try:
             syllabus_data = extract_syllabus_with_ai(extracted_text)
         except Exception as ai_err:
             messages.error(request, f"AI Syllabus Extraction failed: {str(ai_err)}")
             return redirect('/study/?tab=subjects')
 
-        # 3. Deduplication & Sync Engine
+        # 3. Deduplication and sync
         semester = syllabus_data.get('semester', 7)
         subjects_list = syllabus_data.get('subjects', [])
 
-        created_subjects_count = 0
-        skipped_subjects_count = 0
-        updated_subjects_count = 0
-        created_topics_count = 0
+        created_subjects = 0
+        skipped_subjects = 0
+        updated_subjects = 0
+        created_topics = 0
 
         for idx, subj_data in enumerate(subjects_list):
             name = subj_data.get('name', '').strip()
             code = subj_data.get('code', '').strip() or None
             description = subj_data.get('description', '').strip()
+            is_elective = subj_data.get('is_elective', False)
+            elective_group = subj_data.get('elective_group') or None
             topics_data = subj_data.get('topics', [])
 
             if not name:
@@ -114,99 +110,68 @@ class ImportSemesterSyllabusView(View):
 
             color = COLOR_PALETTE[idx % len(COLOR_PALETTE)]
 
-            # Check if subject already exists for this user (case-insensitive)
-            existing_subject = Subject.objects.filter(user=request.user, name__iexact=name).first()
+            # Check if subject already exists
+            existing = Subject.objects.filter(user=request.user, name__iexact=name).first()
 
-            if existing_subject:
-                # Get set of all existing topic titles normalized to lowercase
-                existing_topic_titles = {
-                    t.title.strip().lower() for t in existing_subject.topics.all()
-                }
+            if existing:
+                existing_titles = {t.title.strip().lower() for t in existing.topics.all()}
+                incoming_titles = [t.get('title', '').strip() for t in topics_data if t.get('title', '').strip()]
+                missing = [t for t in topics_data if t.get('title', '').strip() and t.get('title', '').strip().lower() not in existing_titles]
 
-                # Get clean list of incoming topic titles
-                incoming_topic_titles = [
-                    t.get('title', '').strip() for t in topics_data if t.get('title', '').strip()
-                ]
-
-                # Determine if all incoming topics already exist
-                missing_topics = [
-                    t for t in topics_data
-                    if t.get('title', '').strip() and t.get('title', '').strip().lower() not in existing_topic_titles
-                ]
-
-                # CASE A: Subject and ALL its topics already exist -> SKIP
-                if not missing_topics:
-                    skipped_subjects_count += 1
-                    print(f"⏩ [Deduplication]: Skipped identical subject '{name}' (All {len(existing_topic_titles)} topics already present).")
+                if not missing:
+                    skipped_subjects += 1
                     continue
 
-                # CASE B: Subject exists, but has NEW topics -> Insert only the missing topics
-                new_added_for_subj = 0
-                current_chapter_start = existing_subject.topics.count()
-
-                for t_idx, topic_data in enumerate(missing_topics):
-                    topic_title = topic_data.get('title', '').strip()
-                    difficulty = topic_data.get('difficulty', 'medium')
-                    chapter_num = current_chapter_start + t_idx + 1
-
+                current_ch = existing.topics.count()
+                for t_idx, td in enumerate(missing):
                     StudyTopic.objects.create(
-                        subject=existing_subject,
-                        title=topic_title,
-                        chapter_number=chapter_num,
-                        difficulty=difficulty,
+                        subject=existing,
+                        title=td.get('title', '').strip(),
+                        chapter_number=current_ch + t_idx + 1,
+                        difficulty=td.get('difficulty', 'medium'),
                         status='not_started'
                     )
-                    new_added_for_subj += 1
-                    created_topics_count += 1
-
-                updated_subjects_count += 1
-                print(f"🔄 [Deduplication]: Updated subject '{name}' with {new_added_for_subj} new topics.")
-
+                    created_topics += 1
+                updated_subjects += 1
             else:
-                # CASE C: Completely new subject -> Create subject & all topics
-                new_subject = Subject.objects.create(
+                new_subj = Subject.objects.create(
                     user=request.user,
                     name=name,
                     code=code,
                     semester=semester,
                     color=color,
-                    description=description
+                    description=description,
+                    is_elective=is_elective,
+                    elective_group=elective_group
                 )
-                created_subjects_count += 1
+                created_subjects += 1
 
-                for t_idx, topic_data in enumerate(topics_data):
-                    topic_title = topic_data.get('title', '').strip()
-                    difficulty = topic_data.get('difficulty', 'medium')
-                    chapter_num = topic_data.get('chapter_number', t_idx + 1)
-
-                    if topic_title:
+                for t_idx, td in enumerate(topics_data):
+                    title = td.get('title', '').strip()
+                    if title:
                         StudyTopic.objects.create(
-                            subject=new_subject,
-                            title=topic_title,
-                            chapter_number=chapter_num,
-                            difficulty=difficulty,
+                            subject=new_subj,
+                            title=title,
+                            chapter_number=td.get('chapter_number', t_idx + 1),
+                            difficulty=td.get('difficulty', 'medium'),
                             status='not_started'
                         )
-                        created_topics_count += 1
+                        created_topics += 1
 
-        # 4. Construct informative feedback message
-        if created_subjects_count == 0 and created_topics_count == 0 and skipped_subjects_count > 0:
-            messages.info(
-                request,
-                f"ℹ️ All {skipped_subjects_count} subjects and their topics in this syllabus are already up-to-date in your Study Hub. Nothing new was added."
-            )
+        # 4. Feedback
+        if created_subjects == 0 and created_topics == 0 and skipped_subjects > 0:
+            messages.info(request, f"ℹ️ All {skipped_subjects} subjects already up-to-date. Nothing new added.")
         else:
-            summary_parts = []
-            if created_subjects_count > 0:
-                summary_parts.append(f"{created_subjects_count} new subjects added")
-            if updated_subjects_count > 0:
-                summary_parts.append(f"{updated_subjects_count} subjects updated")
-            if created_topics_count > 0:
-                summary_parts.append(f"{created_topics_count} new topics synced")
-            if skipped_subjects_count > 0:
-                summary_parts.append(f"{skipped_subjects_count} identical subjects skipped")
-
-            messages.success(request, "🎉 " + ", ".join(summary_parts) + ".")
+            parts = []
+            if created_subjects > 0:
+                parts.append(f"{created_subjects} new subjects")
+            if updated_subjects > 0:
+                parts.append(f"{updated_subjects} updated")
+            if created_topics > 0:
+                parts.append(f"{created_topics} new topics")
+            if skipped_subjects > 0:
+                parts.append(f"{skipped_subjects} skipped (identical)")
+            messages.success(request, "🎉 " + ", ".join(parts) + ".")
 
         return redirect('/study/?tab=subjects')
 
@@ -221,7 +186,7 @@ class SubjectCreateView(View):
             subject.save()
             messages.success(request, f"Subject '{subject.name}' added!")
         else:
-            messages.error(request, "Failed to add subject. Check the form.")
+            messages.error(request, "Failed to add subject.")
         return redirect('/study/?tab=subjects')
 
 
@@ -244,7 +209,7 @@ class TopicCreateView(View):
             topic = form.save(commit=False)
             topic.subject = subject
             topic.save()
-            messages.success(request, f"Topic '{topic.title}' added to {subject.name}!")
+            messages.success(request, f"Topic '{topic.title}' added!")
         return redirect('/study/?tab=subjects')
 
 

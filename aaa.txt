@@ -1,0 +1,411 @@
+# 🎓 TutorAI — AI-Powered Academic Learning & Revision Platform
+
+> **"Study smarter, not harder. Let AI teach you, test you, and make sure you never forget."**
+
+TutorAI is a full-stack web application built for university engineering students that combines AI-powered tutoring, intelligent document processing, automated syllabus management, and a spaced-repetition revision engine into one unified learning platform.
+
+---
+
+## 📖 Table of Contents
+
+1. [The Problem We Solve](#the-problem-we-solve)
+2. [Features Overview](#features-overview)
+3. [System Architecture](#system-architecture)
+4. [Technology Stack](#technology-stack)
+5. [Project Structure](#project-structure)
+6. [Database Models](#database-models)
+7. [AI Integration](#ai-integration)
+8. [Setup & Installation](#setup--installation)
+9. [Git Branching Strategy](#git-branching-strategy)
+10. [Team Contributions](#team-contributions)
+11. [Development Roadmap](#development-roadmap)
+12. [Screenshots & User Flow](#screenshots--user-flow)
+
+---
+
+## 🧠 The Problem We Solve
+
+### The Core Problem
+University students face a critical learning crisis:
+
+1. **Passive Learning:** Students read PDF textbooks and lecture notes but retain less than 30% within 24 hours (Ebbinghaus Forgetting Curve).
+2. **No Active Recall:** There is no structured system to test understanding after studying.
+3. **Revision Chaos:** Students don't know WHAT to revise, WHEN to revise, or HOW to revise effectively. They waste hours re-reading notes that don't stick.
+4. **Syllabus Overload:** A 7th-semester engineering student manages 5-8 subjects with 40+ topics each. Manually tracking progress is impossible.
+5. **No Personalization:** Generic study tools don't understand YOUR specific university syllabus, YOUR uploaded notes, or YOUR weak areas.
+
+### Our Solution
+TutorAI is a **complete AI learning companion** that manages the entire learning lifecycle:
+Upload Notes → Chat with AI Tutor → Take AI Quizzes → Auto-Flashcards → Daily Revision → Exam Ready
+
+text
+
+
+---
+
+## 🚀 Features Overview
+
+### ✅ Phase 1: Authentication System (COMPLETED)
+- Custom `AbstractUser` model with email-based login (`USERNAME_FIELD = "email"`)
+- Registration with Full Name, Username, Email, Password, Confirm Password
+- Duplicate email/username validation
+- Password match validation
+- Eye-icon show/hide password toggle on all password fields
+- Secure logout with session cleanup
+- CSRF protection configured for all browsers (including Brave)
+- Modern Tailwind CSS responsive login/register cards
+
+### ✅ Phase 2: Dashboard & Navigation Shell (COMPLETED)
+- Responsive sidebar navigation with active tab highlighting
+- Collapsible mobile sidebar
+- Hero banner with personalized student greeting
+- Live metric counter cards (Documents, Quizzes, Tutor Sessions)
+- Quick action hub linking to all modules
+- User avatar with initials badge
+- Flash message notification system (success/error banners)
+
+### ✅ Phase 3: AI Academic Tutor Space (COMPLETED)
+- Real-time AI chat powered by **Groq Cloud** (Llama 3.3 70B Versatile)
+- Dynamic active model discovery (auto-detects available Groq models to prevent 404 errors)
+- Multi-turn conversation memory stored in SQLite database
+- Chat history sidebar with auto-generated session titles from first question
+- `+ New Chat` button to create fresh sessions
+- `🗑️ Clear Chat` button to wipe messages via AJAX
+- Rich Markdown rendering (bullet points, bold, code blocks) via Marked.js
+- Typing indicator animation while AI generates response
+- System instruction enforcing academic tutor persona
+- `<think>` tag stripping for reasoning models
+
+### ✅ Phase 4: Document Management System (COMPLETED)
+- Drag-and-drop PDF/DOCX/TXT file upload zone
+- File validation (format check + 15MB size limit)
+- Auto-generated human-readable file sizes (KB/MB)
+- PyMuPDF text extraction from uploaded PDFs
+- Document processing status badges (Uploaded, Processing, Ready, Failed)
+- Document library grid with search and filter by file type
+- Download/view PDF directly in browser
+- Delete document with physical file cleanup from disk
+- Connected to Dashboard metrics (live document count)
+
+### ✅ Phase 5: AI Study Hub & Syllabus Manager (COMPLETED)
+- 4-tab Study Hub interface (Overview, Subjects, Study, Progress)
+- Subject & Syllabus Manager with color-coded subject cards
+- Mastery progress bars per subject
+- Topic status tracking (Not Started → Learning → Revising → Mastered)
+- **1-Click AI Semester Syllabus Auto-Importer:**
+  - Upload one semester syllabus PDF
+  - AI extracts ALL subjects, course codes, and unit topics automatically
+  - Python-side heuristic pre-filtering reduces token usage by 85%
+  - Ultra-compact JSON schema minimizes API token footprint
+  - Dynamic Groq model discovery prevents 404 model errors
+- **Intelligent Deduplication Engine:**
+  - Skips subjects whose topics already match existing records
+  - Partial sync: adds only missing topics to existing subjects
+  - Transparent reporting of created/updated/skipped counts
+- Daily study streak & XP gamification system
+- Exam countdown tracker
+- Manual subject/topic creation as fallback
+
+---
+
+## 🏗️ System Architecture
+┌─────────────────────────────────────────────────────────────┐
+│ TUTOR AI PLATFORM │
+├─────────────────────────────────────────────────────────────┤
+│ │
+│ FRONTEND (Tailwind CSS + Vanilla JS + Marked.js) │
+│ ├── templates/base.html (Master Layout) │
+│ ├── templates/accounts/ (Auth Pages) │
+│ ├── templates/tutor/ (Dashboard + Chat) │
+│ ├── templates/documents/ (Upload + Library) │
+│ └── templates/study/ (Study Hub) │
+│ │
+│ BACKEND (Django 6.0 + Python 3.14) │
+│ ├── apps/accounts/ (Auth + User Model) │
+│ ├── apps/tutor/ (AI Chat + Dashboard) │
+│ ├── apps/documents/ (PDF Upload + Processing) │
+│ └── apps/study/ (Syllabus + Study Hub) │
+│ │
+│ AI LAYER │
+│ ├── Groq Cloud API (Llama 3.3 70B) │
+│ ├── PyMuPDF (PDF Text Extraction) │
+│ └── Google Gemini API (Embeddings - Planned) │
+│ │
+│ DATABASE (SQLite3) │
+│ ├── accounts_user (Custom User) │
+│ ├── tutor_tutorsession (Chat Sessions) │
+│ ├── tutor_chatmessage (Chat Messages) │
+│ ├── documents_document (Uploaded Files) │
+│ ├── documents_documentcontent (Extracted Text) │
+│ ├── documents_documentchunk (Text Chunks) │
+│ ├── study_subject (Subjects) │
+│ ├── study_studytopic (Topics) │
+│ ├── study_studysession (Study Sessions) │
+│ ├── study_studynote (AI Notes) │
+│ └── study_dailystreak (Gamification) │
+│ │
+└─────────────────────────────────────────────────────────────┘
+
+text
+
+
+---
+
+## 💻 Technology Stack
+
+| Layer | Technology | Version |
+|---|---|---|
+| Backend Framework | Django | 6.0.7 |
+| Language | Python | 3.14.6 |
+| Database | SQLite3 | Built-in |
+| AI Chat | Groq Cloud (Llama 3.3 70B) | Latest |
+| PDF Processing | PyMuPDF | 1.28.2 |
+| Environment Variables | python-dotenv | 1.2.2 |
+| Frontend CSS | Tailwind CSS | CDN |
+| Icons | FontAwesome | 6.4.0 |
+| Fonts | Google Fonts (Inter) | Latest |
+| Markdown Rendering | Marked.js | CDN |
+| Version Control | Git + GitHub | Latest |
+
+---
+
+## 📁 Project Structure
+Tutor_System/
+├── config/ # Django project configuration
+│ ├── settings.py # All settings, API keys, app registry
+│ ├── urls.py # Root URL routing
+│ ├── wsgi.py
+│ └── asgi.py
+│
+├── apps/
+│ ├── accounts/ # Authentication module
+│ │ ├── models.py # Custom User model (AbstractUser)
+│ │ ├── views.py # Register, Login, Logout, Profile
+│ │ ├── forms.py # RegistrationForm, LoginForm
+│ │ ├── urls.py # Auth URL patterns
+│ │ ├── backends.py # EmailBackend for email login
+│ │ ├── admin.py # Admin registration
+│ │ └── apps.py
+│ │
+│ ├── tutor/ # AI Tutor & Dashboard module
+│ │ ├── models.py # TutorSession, ChatMessage
+│ │ ├── views.py # Dashboard, Chat, NewSession, ClearSession
+│ │ ├── urls.py # Tutor URL patterns
+│ │ └── apps.py
+│ │
+│ ├── documents/ # Document management module
+│ │ ├── models.py # Document, DocumentContent, DocumentChunk
+│ │ ├── views.py # Upload, List, Delete
+│ │ ├── services.py # create_document (PyMuPDF extraction)
+│ │ ├── embeddings.py # Gemini embeddings (by Pranaya)
+│ │ ├── urls.py # Document URL patterns
+│ │ └── apps.py
+│ │
+│ └── study/ # Study Hub & Syllabus module
+│ ├── models.py # Subject, StudyTopic, StudySession, StudyNote, DailyStreak
+│ ├── views.py # StudyHub, ImportSyllabus, Subject/Topic CRUD
+│ ├── services.py # AI syllabus parser (Groq + token optimization)
+│ ├── forms.py # SubjectForm, StudyTopicForm
+│ ├── urls.py # Study URL patterns
+│ └── apps.py
+│
+├── templates/
+│ ├── base.html # Master layout (sidebar, header, messages)
+│ ├── accounts/
+│ │ ├── base.html # Auth-specific layout
+│ │ ├── login.html
+│ │ ├── register.html
+│ │ └── profile.html
+│ ├── tutor/
+│ │ ├── dashboard.html
+│ │ └── chat.html # AI chat with sidebar history
+│ ├── documents/
+│ │ ├── list.html # Document library grid
+│ │ └── upload.html # Drag-and-drop upload
+│ └── study/
+│ └── hub.html # 4-tab Study Hub
+│
+├── media/ # Uploaded files (gitignored)
+├── static/ # Static assets
+├── .env # Environment variables (gitignored)
+├── .gitignore
+├── manage.py
+├── requirements.txt
+└── db.sqlite3
+
+text
+
+
+---
+
+## 🗄️ Database Models
+
+### Custom User (`apps/accounts/models.py`)
+```python
+class User(AbstractUser):
+    username = CharField(unique=True)
+    email = EmailField(unique=True)
+    full_name = CharField(max_length=255)
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username", "full_name"]
+Tutor Chat (apps/tutor/models.py)
+Python
+
+class TutorSession:
+    user → ForeignKey(User)
+    title → CharField (auto-generated from first question)
+    created_at, updated_at
+
+class ChatMessage:
+    session → ForeignKey(TutorSession)
+    role → "user" | "model"
+    content → TextField
+    timestamp
+Documents (apps/documents/models.py)
+Python
+
+class Document:
+    owner → ForeignKey(User)
+    title, file, file_type, status
+    uploaded_at
+
+class DocumentContent:
+    document → OneToOneField(Document)
+    text → TextField (extracted by PyMuPDF)
+
+class DocumentChunk:
+    document → ForeignKey(Document)
+    text, chunk_index (for RAG embeddings)
+Study Hub (apps/study/models.py)
+Python
+
+class Subject:
+    user → ForeignKey(User)
+    name, code, semester, color, description, exam_date
+
+class StudyTopic:
+    subject → ForeignKey(Subject)
+    title, status (not_started/learning/revising/mastered), difficulty
+
+class StudySession:
+    user, subject, session_type, duration_minutes
+
+class StudyNote:
+    user, subject, document, title, content, ai_generated
+
+class DailyStreak:
+    user → OneToOneField(User)
+    current_streak, longest_streak, total_xp, level
+🤖 AI Integration
+Groq Cloud (Primary AI Engine)
+Model: Llama 3.3 70B Versatile (primary), with dynamic fallback
+Use Cases: AI Tutor chat, Syllabus parsing
+Authentication: Bearer token via GROQ_API_KEY in .env
+Rate Limit: 8,000 TPM on free tier
+Token Optimization Strategy:
+Python-side heuristic pre-filtering (85% token reduction)
+Ultra-compact JSON schemas
+Dynamic active model discovery (client.models.list())
+Strict max_tokens caps per request type
+PyMuPDF (Document Processing)
+Use Case: Extract raw text from uploaded PDF files
+Import: import pymupdf (NOT import fitz which is deprecated)
+Output: Plain text stored in DocumentContent.text
+Google Gemini (Planned)
+Use Case: Vector embeddings for RAG document search
+Status: API key configured, embeddings pipeline scaffolded by Pranaya
+⚙️ Setup & Installation
+Prerequisites
+Python 3.14+
+Git
+A free Groq Cloud API key (console.groq.com)
+Step-by-Step Setup
+Bash
+
+# 1. Clone the repository
+git clone https://github.com/Sayami-0302/AI-TUTOR-SYSTEM.git
+cd AI-TUTOR-SYSTEM
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Create environment variables file
+# Create a file named .env in the project root with:
+SECRET_KEY=your-django-secret-key-here
+DEBUG=True
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GEMINI_API_KEY=your_gemini_key_here  # Optional
+
+# 4. Run database migrations
+python manage.py migrate
+
+# 5. Create a superuser (admin)
+python manage.py createsuperuser
+
+# 6. Start the development server
+python manage.py runserver
+
+# 7. Open in browser
+# http://127.0.0.1:8000/
+Environment Variables (.env)
+Variable	Required	Description
+SECRET_KEY	Yes	Django secret key
+DEBUG	Yes	True for development
+GROQ_API_KEY	Yes	Groq Cloud API key (starts with gsk_)
+GEMINI_API_KEY	Optional	Google Gemini API key for embeddings
+🌿 Git Branching Strategy
+text
+
+main (production-ready)
+  └── develop (integration branch)
+        ├── feature/authentication-aayush    (Auth - merged)
+        ├── feature/authentication-pranaya   (Backend - merged)
+        ├── feature/tutor-dashboard-aayush   (Dashboard + Tutor + Study Hub)
+        ├── feature/documents-aayush         (Document UI)
+        └── feature/document-processing-pranaya (PDF processing + embeddings)
+Git Remotes
+origin → https://github.com/Sayami-0302/AI-TUTOR-SYSTEM.git (Primary)
+upstream → https://github.com/pranaya890/Tutor_System.git (Collaborator)
+👥 Team Contributions
+Aayush (Sayami-0302) — Frontend, Auth, AI Tutor, Study Hub
+Custom authentication system with email login
+Modern Tailwind CSS responsive UI (all templates)
+AI Tutor chat with Groq Cloud integration
+Chat history sidebar with session management
+Document management frontend (upload, list, delete)
+AI Study Hub with 4-tab interface
+1-Click AI Semester Syllabus Auto-Importer
+Intelligent deduplication engine
+Token optimization for Groq API calls
+Repository setup and Git workflow management
+Pranaya (pranaya890) — Backend Infrastructure, Document Processing
+Django project initialization and configuration
+Custom AbstractUser model
+Database migrations and admin setup
+Document models (Document, DocumentContent, DocumentChunk)
+PyMuPDF text extraction pipeline
+Gemini embeddings integration
+App structure for all modules (accounts, tutor, documents, quiz, analytics, recommendations)
+🗺️ Development Roadmap
+Completed ✅
+ Authentication System
+ Dashboard & Navigation Shell
+ AI Academic Tutor (Groq Chat)
+ Document Management (Upload + PyMuPDF)
+ AI Study Hub & Syllabus Auto-Importer
+ Subject & Topic Deduplication
+ Document Deletion
+ Gamification Models (Streaks, XP)
+In Progress 🔄
+ Document-Aware AI Chat (RAG Integration)
+ AI Quiz Generator from Documents
+ Smart Flashcards with SM-2 Spaced Repetition
+Planned 📋
+ Daily Revision Queue
+ Forgetting Curve Dashboard
+ One-Page AI Revision Sheets
+ Mock Exam Simulator
+ Mistake Journal & Weak Area Tracker
+ Exam Countdown & Study Planner
+ Weekly Progress Reports
+ ChromaDB Vector Storage
