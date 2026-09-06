@@ -73,10 +73,12 @@ class ProfileView(View):
     def get(self, request):
         if not request.user.is_authenticated:
             return redirect('login')
+        active_tab = request.GET.get('tab', 'details')
         password_form = CustomPasswordChangeForm(user=request.user)
         return render(request, 'accounts/profile.html', {
             'user': request.user,
-            'password_form': password_form
+            'password_form': password_form,
+            'active_tab': active_tab,
         })
 
     def post(self, request):
@@ -85,7 +87,6 @@ class ProfileView(View):
         password_form = CustomPasswordChangeForm(user=request.user, data=request.POST)
         if password_form.is_valid():
             user = password_form.save()
-            # Keep active session alive so user is not logged out
             update_session_auth_hash(request, user)
             messages.success(request, "Your password has been changed successfully!")
             return redirect('profile')
@@ -93,5 +94,6 @@ class ProfileView(View):
             messages.error(request, "Please correct the errors in the password change form.")
             return render(request, 'accounts/profile.html', {
                 'user': request.user,
-                'password_form': password_form
+                'password_form': password_form,
+                'active_tab': 'password',
             })

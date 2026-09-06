@@ -105,15 +105,15 @@
                                 <p class="text-[11px] text-gray-400 truncate">{{ user.email }}</p>
                             </div>
                             <div class="py-1">
-                                <a href="{% url 'profile' %}" onclick="navigateToProfile(event, 'details')" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                                <a href="{% url 'profile' %}" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
                                     <i class="fa-solid fa-id-badge mr-2.5 text-gray-400 w-4"></i> Profile Details
                                 </a>
-                                <a href="{% url 'profile' %}?tab=password" onclick="navigateToProfile(event, 'password')" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                                <a href="{% url 'profile' %}?tab=password" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
                                     <i class="fa-solid fa-key mr-2.5 text-gray-400 w-4"></i> Change Password
                                 </a>
                             </div>
-                            <!-- Show Sign Out only if NOT on the Profile Details page -->
-                            {% if request.resolver_match.url_name != 'profile' and 'accounts/profile' not in request.path %}
+                            <!-- Hide Sign Out in dropdown when already on the Profile page -->
+                            {% if 'accounts/profile' not in request.path %}
                             <div class="border-t border-gray-100 pt-1">
                                 <a href="{% url 'logout' %}" class="flex items-center px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
                                     <i class="fa-solid fa-arrow-right-from-bracket mr-2.5 text-rose-500 w-4"></i> Sign Out
@@ -171,31 +171,6 @@
             if (e) e.stopPropagation();
             const dropdown = document.getElementById('user-dropdown');
             dropdown.classList.toggle('hidden');
-        }
-
-        // Clean Navigation handler between pages and on-page
-        function navigateToProfile(e, target) {
-            const dropdown = document.getElementById('user-dropdown');
-            if (dropdown) dropdown.classList.add('hidden');
-
-            const isAlreadyOnProfile = window.location.pathname.includes('/accounts/profile/');
-            const mainContent = document.getElementById('main-content');
-
-            if (isAlreadyOnProfile && mainContent) {
-                e.preventDefault();
-                if (target === 'details') {
-                    mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-                    if (window.location.search || window.location.hash) {
-                        history.replaceState(null, null, window.location.pathname);
-                    }
-                } else if (target === 'password') {
-                    const pwdSection = document.getElementById('password-section');
-                    if (pwdSection) {
-                        pwdSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        history.replaceState(null, null, window.location.pathname + '?tab=password');
-                    }
-                }
-            }
         }
 
         // Global Click Outside Listener

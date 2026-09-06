@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
-{% block title %}Profile Settings | TutorAI{% endblock %}
+{% block title %}Account Settings | TutorAI{% endblock %}
 {% block header_title %}Account Profile{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto space-y-6">
 
     <!-- Top Profile Header Card -->
-    <div id="profile-top" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
         <div class="w-24 h-24 rounded-full bg-indigo-600 text-white text-3xl font-extrabold flex items-center justify-center uppercase shadow-md shadow-indigo-100 flex-shrink-0">
             {{ user.full_name|slice:":1"|default:user.username|slice:":1" }}
         </div>
@@ -25,115 +25,153 @@
         </div>
     </div>
 
-    <!-- Personal Information Card -->
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
-        <div class="border-b border-gray-100 pb-4">
-            <h3 class="text-lg font-bold text-gray-900">Personal Information</h3>
-            <p class="text-xs text-gray-500">Overview of your registered academic credentials</p>
+    <!-- Tab Navigation Pills -->
+    <div class="flex items-center bg-white border border-gray-200 rounded-2xl p-1.5 shadow-sm">
+        <button onclick="switchProfileTab('details')" id="tab-btn-details" 
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition {% if active_tab != 'password' %}bg-indigo-600 text-white shadow-md shadow-indigo-600/30{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            <i class="fa-solid fa-id-badge"></i> Personal Details
+        </button>
+        <button onclick="switchProfileTab('password')" id="tab-btn-password" 
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition {% if active_tab == 'password' %}bg-indigo-600 text-white shadow-md shadow-indigo-600/30{% else %}text-gray-600 hover:bg-gray-100{% endif %}">
+            <i class="fa-solid fa-key"></i> Security & Password
+        </button>
+    </div>
+
+    <!-- ==================== TAB 1: PERSONAL DETAILS ==================== -->
+    <div id="tab-content-details" class="space-y-6 {% if active_tab == 'password' %}hidden{% endif %}">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
+            <div class="border-b border-gray-100 pb-4">
+                <h3 class="text-base font-bold text-gray-900">Academic Credentials</h3>
+                <p class="text-xs text-gray-500">Your university profile details registered on TutorAI</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Full Name</label>
+                    <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800">
+                        {{ user.full_name|default:"Not specified" }}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Username</label>
+                    <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800">
+                        {{ user.username }}
+                    </div>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Email Address (Login ID)</label>
+                    <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 flex items-center justify-between">
+                        <span>{{ user.email }}</span>
+                        <i class="fa-solid fa-envelope text-gray-400 text-sm"></i>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Session Management Card -->
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 flex items-center justify-between">
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Full Name</label>
-                <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800">
-                    {{ user.full_name|default:"Not specified" }}
-                </div>
+                <p class="text-sm font-bold text-gray-900">Session Management</p>
+                <p class="text-xs text-gray-500">Sign out of your active browser session</p>
             </div>
-
-            <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Username</label>
-                <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800">
-                    {{ user.username }}
-                </div>
-            </div>
-
-            <div class="md:col-span-2">
-                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Email Address (Login ID)</label>
-                <div class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 flex items-center justify-between">
-                    <span>{{ user.email }}</span>
-                    <i class="fa-solid fa-envelope text-gray-400 text-sm"></i>
-                </div>
-            </div>
+            <a href="{% url 'logout' %}" class="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold text-xs rounded-xl transition border border-rose-200 flex items-center gap-2">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+            </a>
         </div>
     </div>
 
-    <!-- Security & Change Password Card -->
-    <div id="password-section" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
-        <div class="border-b border-gray-100 pb-4 flex items-center justify-between">
-            <div>
-                <h3 class="text-lg font-bold text-gray-900">Security & Password</h3>
-                <p class="text-xs text-gray-500">Update your account password</p>
+    <!-- ==================== TAB 2: SECURITY & PASSWORD ==================== -->
+    <div id="tab-content-password" class="space-y-6 {% if active_tab != 'password' %}hidden{% endif %}">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
+            <div class="border-b border-gray-100 pb-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-bold text-gray-900">Update Password</h3>
+                    <p class="text-xs text-gray-500">Ensure your account uses a strong password</p>
+                </div>
+                <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-lg shadow-sm">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
             </div>
-            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-lg shadow-sm">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
+
+            <form method="POST" action="{% url 'profile' %}" class="space-y-4 max-w-xl">
+                {% csrf_token %}
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Old Password</label>
+                    <div class="relative flex items-center">
+                        {{ password_form.old_password }}
+                        <button type="button" onclick="toggleFieldPassword('id_old_password', this)" class="absolute right-3.5 text-gray-400 hover:text-indigo-600 transition" tabindex="-1">
+                            <i class="fa-solid fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                    {% if password_form.old_password.errors %}
+                        <p class="text-xs text-rose-600 mt-1 font-semibold">{{ password_form.old_password.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">New Password</label>
+                    <div class="relative flex items-center">
+                        {{ password_form.new_password1 }}
+                        <button type="button" onclick="toggleFieldPassword('id_new_password1', this)" class="absolute right-3.5 text-gray-400 hover:text-indigo-600 transition" tabindex="-1">
+                            <i class="fa-solid fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                    {% if password_form.new_password1.errors %}
+                        <p class="text-xs text-rose-600 mt-1 font-semibold">{{ password_form.new_password1.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Confirm New Password</label>
+                    <div class="relative flex items-center">
+                        {{ password_form.new_password2 }}
+                        <button type="button" onclick="toggleFieldPassword('id_new_password2', this)" class="absolute right-3.5 text-gray-400 hover:text-indigo-600 transition" tabindex="-1">
+                            <i class="fa-solid fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                    {% if password_form.new_password2.errors %}
+                        <p class="text-xs text-rose-600 mt-1 font-semibold">{{ password_form.new_password2.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-indigo-100 flex items-center gap-2">
+                        <i class="fa-solid fa-key"></i> Update Password
+                    </button>
+                </div>
+            </form>
         </div>
-
-        <!-- Added autocomplete="off" to prevent browser autofill from scrolling down on load -->
-        <form method="POST" action="{% url 'profile' %}" autocomplete="off" class="space-y-4 max-w-xl">
-            {% csrf_token %}
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">Old Password</label>
-                <div class="relative flex items-center">
-                    {{ password_form.old_password }}
-                    <button type="button" onclick="toggleFieldPassword('id_old_password', this)" class="absolute right-3.5 text-gray-400 hover:text-indigo-600 transition" tabindex="-1">
-                        <i class="fa-solid fa-eye text-sm"></i>
-                    </button>
-                </div>
-                {% if password_form.old_password.errors %}
-                    <p class="text-xs text-rose-600 mt-1">{{ password_form.old_password.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">New Password</label>
-                <div class="relative flex items-center">
-                    {{ password_form.new_password1 }}
-                    <button type="button" onclick="toggleFieldPassword('id_new_password1', this)" class="absolute right-3.5 text-gray-400 hover:text-indigo-600 transition" tabindex="-1">
-                        <i class="fa-solid fa-eye text-sm"></i>
-                    </button>
-                </div>
-                {% if password_form.new_password1.errors %}
-                    <p class="text-xs text-rose-600 mt-1">{{ password_form.new_password1.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">Confirm New Password</label>
-                <div class="relative flex items-center">
-                    {{ password_form.new_password2 }}
-                    <button type="button" onclick="toggleFieldPassword('id_new_password2', this)" class="absolute right-3.5 text-gray-400 hover:text-indigo-600 transition" tabindex="-1">
-                        <i class="fa-solid fa-eye text-sm"></i>
-                    </button>
-                </div>
-                {% if password_form.new_password2.errors %}
-                    <p class="text-xs text-rose-600 mt-1">{{ password_form.new_password2.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div class="pt-2">
-                <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-indigo-100 flex items-center gap-2">
-                    <i class="fa-solid fa-key"></i> Update Password
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Danger Zone / Sign Out -->
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 flex items-center justify-between">
-        <div>
-            <p class="text-sm font-bold text-gray-900">Session Management</p>
-            <p class="text-xs text-gray-500">Sign out of your active browser session</p>
-        </div>
-        <a href="{% url 'logout' %}" class="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold text-xs rounded-xl transition border border-rose-200 flex items-center gap-2">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
-        </a>
     </div>
 
 </div>
 
 <script>
+    function switchProfileTab(tabName) {
+        const detailsTab = document.getElementById('tab-content-details');
+        const passwordTab = document.getElementById('tab-content-password');
+        const detailsBtn = document.getElementById('tab-btn-details');
+        const passwordBtn = document.getElementById('tab-btn-password');
+
+        if (tabName === 'password') {
+            detailsTab.classList.add('hidden');
+            passwordTab.classList.remove('hidden');
+
+            passwordBtn.className = "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow-md shadow-indigo-600/30";
+            detailsBtn.className = "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition text-gray-600 hover:bg-gray-100";
+            history.replaceState(null, null, window.location.pathname + '?tab=password');
+        } else {
+            passwordTab.classList.add('hidden');
+            detailsTab.classList.remove('hidden');
+
+            detailsBtn.className = "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow-md shadow-indigo-600/30";
+            passwordBtn.className = "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition text-gray-600 hover:bg-gray-100";
+            history.replaceState(null, null, window.location.pathname);
+        }
+    }
+
     function toggleFieldPassword(fieldId, btn) {
         const input = document.getElementById(fieldId);
         const icon = btn.querySelector('i');
@@ -149,31 +187,5 @@
             icon.classList.add('fa-eye');
         }
     }
-
-    // Force strict scroll position on page load
-    window.addEventListener('load', function() {
-        const mainContent = document.getElementById('main-content');
-        const urlParams = new URLSearchParams(window.location.search);
-
-        if (urlParams.get('tab') === 'password') {
-            const pwdSection = document.getElementById('password-section');
-            if (pwdSection) {
-                setTimeout(() => {
-                    pwdSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
-            }
-        } else {
-            // Guarantee landing at the top of the personal details
-            if (mainContent) {
-                mainContent.scrollTop = 0;
-            }
-            window.scrollTo(0, 0);
-
-            // Remove focus from any password inputs if browser auto-focused them
-            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
-                document.activeElement.blur();
-            }
-        }
-    });
 </script>
 {% endblock %}
