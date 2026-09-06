@@ -9,6 +9,7 @@ urlpatterns = [
     path('accounts/', include('apps.accounts.urls')),
     path('tutor/', include('apps.tutor.urls')),
     path('documents/', include('apps.documents.urls', namespace='documents')),
+    path('api/tutor/', include('apps.documents.api_urls')),
     path('', lambda request: redirect('dashboard')),
 ]
 
