@@ -6,8 +6,8 @@
 {% block content %}
 <div class="max-w-4xl mx-auto space-y-6">
 
-    <!-- Profile Header Card -->
-    <div id="profile-header" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+    <!-- Top Profile Header Card -->
+    <div id="profile-top" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
         <div class="w-24 h-24 rounded-full bg-indigo-600 text-white text-3xl font-extrabold flex items-center justify-center uppercase shadow-md shadow-indigo-100 flex-shrink-0">
             {{ user.full_name|slice:":1"|default:user.username|slice:":1" }}
         </div>
@@ -58,7 +58,7 @@
     </div>
 
     <!-- Security & Change Password Card -->
-    <div id="password-section" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
+    <div id="password-section" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6 scroll-mt-6">
         <div class="border-b border-gray-100 pb-4 flex items-center justify-between">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Security & Password</h3>
