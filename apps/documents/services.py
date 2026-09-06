@@ -2,7 +2,7 @@ import pymupdf as fitz
 import re
 from .models import Document, DocumentContent, DocumentChunk
 from .validators import validate_pdf
-
+from .vector_store import add_document_chunks
 
 def extract_pdf_text(file):
     text = []
@@ -71,6 +71,7 @@ def create_document(*, user, file):
         for index, chunk in enumerate(chunks)
         ]
         )
+        add_document_chunks(document, chunks)
 
         DocumentContent.objects.create(
             document=document,

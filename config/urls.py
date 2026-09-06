@@ -9,10 +9,11 @@ urlpatterns = [
     path('accounts/', include('apps.accounts.urls')),
     path('tutor/', include('apps.tutor.urls')),
     path('documents/', include('apps.documents.urls', namespace='documents')),
+    path('api/documents/', include('apps.documents.api_urls')),
     path('study/', include('apps.study.urls')),
     path('', lambda request: redirect('dashboard')),
 ]
 
-# Serve media files in development
+# Serve uploaded PDF media files during local development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
