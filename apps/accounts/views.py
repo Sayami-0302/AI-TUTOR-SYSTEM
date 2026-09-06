@@ -1,8 +1,8 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate, get_user_model
+from django.contrib.auth import login, logout, authenticate, get_user_model, update_session_auth_hash
 from django.contrib import messages
 from django.views import View
-from .forms import RegistrationForm, LoginForm
+from .forms import RegistrationForm, LoginForm, CustomPasswordChangeForm
 
 User = get_user_model()
 
@@ -73,4 +73,25 @@ class ProfileView(View):
     def get(self, request):
         if not request.user.is_authenticated:
             return redirect('login')
-        return render(request, 'accounts/profile.html', {'user': request.user})
+        password_form = CustomPasswordChangeForm(user=request.user)
+        return render(request, 'accounts/profile.html', {
+            'user': request.user,
+            'password_form': password_form
+        })
+
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return redirect('login')
+        password_form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+        if password_form.is_valid():
+            user = password_form.save()
+            # Keep active session alive so user is not logged out
+            update_session_auth_hash(request, user)
+            messages.success(request, "Your password has been changed successfully!")
+            return redirect('profile')
+        else:
+            messages.error(request, "Please correct the errors in the password change form.")
+            return render(request, 'accounts/profile.html', {
+                'user': request.user,
+                'password_form': password_form
+            })
