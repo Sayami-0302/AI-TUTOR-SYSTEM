@@ -12,21 +12,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <div class="flex h-screen overflow-hidden">
+    <div class="flex h-screen overflow-hidden relative">
         
+        <!-- MOBILE BACKDROP OVERLAY (Dismisses sidebar when clicked outside) -->
+        <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-slate-900/60 z-30 hidden md:hidden backdrop-blur-sm transition-opacity duration-300"></div>
+
         <!-- SIDEBAR -->
-        <aside id="sidebar" class="fixed inset-y-0 left-0 z-20 flex flex-col w-64 h-full bg-slate-900 text-white transition-transform -translate-x-full md:translate-x-0 md:relative flex-shrink-0">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex flex-col w-64 h-full bg-slate-900 text-white transition-transform duration-300 -translate-x-full md:translate-x-0 md:relative flex-shrink-0">
             <!-- Brand Logo -->
             <div class="flex items-center justify-between h-16 px-6 bg-slate-950 border-b border-slate-800">
                 <a href="{% url 'dashboard' %}" class="flex items-center space-x-2">
                     <i class="fa-solid fa-graduation-cap text-indigo-400 text-2xl"></i>
                     <span class="text-xl font-bold tracking-tight">Tutor<span class="text-indigo-400">AI</span></span>
                 </a>
-                <button onclick="toggleSidebar()" class="md:hidden text-gray-400 hover:text-white">
+                <button onclick="closeSidebar()" class="md:hidden text-gray-400 hover:text-white p-1">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
@@ -55,15 +59,15 @@
 
             <!-- Bottom User Card -->
             <div class="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-white uppercase shadow-sm">
+                <a href="{% url 'profile' %}" class="flex items-center space-x-3 group min-w-0 flex-1">
+                    <div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-white uppercase shadow-sm flex-shrink-0 group-hover:scale-105 transition">
                         {{ user.full_name|slice:":1"|default:user.username|slice:":1" }}
                     </div>
-                    <div class="truncate max-w-[120px]">
-                        <p class="text-sm font-semibold truncate">{{ user.full_name|default:user.username }}</p>
+                    <div class="truncate">
+                        <p class="text-sm font-semibold truncate group-hover:text-indigo-300 transition">{{ user.full_name|default:user.username }}</p>
                         <span class="text-xs text-gray-400">Student</span>
                     </div>
-                </div>
+                </a>
                 <a href="{% url 'logout' %}" class="p-2 text-gray-400 hover:text-rose-400 transition rounded-lg hover:bg-slate-800" title="Sign Out">
                     <i class="fa-solid fa-arrow-right-from-bracket text-lg"></i>
                 </a>
@@ -74,9 +78,9 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             
             <!-- HEADER -->
-            <header class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+            <header class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200 relative z-20">
                 <div class="flex items-center space-x-3">
-                    <button onclick="toggleSidebar()" class="md:hidden text-gray-600 hover:text-indigo-600">
+                    <button onclick="toggleSidebar(event)" class="md:hidden text-gray-600 hover:text-indigo-600 p-1">
                         <i class="fa-solid fa-bars text-xl"></i>
                     </button>
                     <h1 class="text-lg font-semibold text-gray-800">{% block header_title %}Welcome Back!{% endblock %}</h1>
@@ -84,17 +88,47 @@
                 
                 <div class="flex items-center space-x-4">
                     <span class="hidden md:inline text-sm text-gray-500 font-medium">Academic Year: 7th Sem</span>
-                    <div class="w-px h-6 bg-gray-200"></div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs text-indigo-400 uppercase">
-                            {{ user.username|slice:":2" }}
+                    <div class="w-px h-6 bg-gray-200 hidden md:block"></div>
+
+                    <!-- USER AVATAR DROPDOWN MENU -->
+                    <div class="relative">
+                        <button onclick="toggleUserDropdown(event)" id="user-menu-btn" class="flex items-center space-x-2 p-1 rounded-full hover:ring-2 hover:ring-indigo-500/30 focus:outline-none transition">
+                            <div class="w-9 h-9 rounded-full bg-slate-900 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase shadow-sm border border-slate-700">
+                                {{ user.username|slice:":2" }}
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 pr-1"></i>
+                        </button>
+
+                        <!-- Dropdown Card -->
+                        <div id="user-dropdown" class="hidden absolute right-0 mt-2.5 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 text-left animate-in fade-in zoom-in-95 duration-150">
+                            <div class="px-4 py-2.5 border-b border-gray-100">
+                                <p class="text-xs font-bold text-gray-900 truncate">{{ user.full_name|default:user.username }}</p>
+                                <p class="text-[11px] text-gray-400 truncate">{{ user.email }}</p>
+                            </div>
+                            <div class="py-1">
+                                <a href="{% url 'profile' %}" onclick="goToProfileTop(event)" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                                    <i class="fa-solid fa-id-badge mr-2.5 text-gray-400 w-4"></i> Profile Details
+                                </a>
+                                <a href="{% url 'profile' %}#password-section" onclick="goToPasswordSection(event)" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                                    <i class="fa-solid fa-key mr-2.5 text-gray-400 w-4"></i> Change Password
+                                </a>
+                            </div>
+                            <!-- Show Sign Out only if NOT on the Profile Details page -->
+                            {% if request.resolver_match.url_name != 'profile' %}
+                            <div class="border-t border-gray-100 pt-1">
+                                <a href="{% url 'logout' %}" class="flex items-center px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition">
+                                    <i class="fa-solid fa-arrow-right-from-bracket mr-2.5 text-rose-500 w-4"></i> Sign Out
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
+
                 </div>
             </header>
 
             <!-- FLASH MESSAGES & VIEW CONTENT -->
-            <main class="flex-1 overflow-y-auto p-6">
+            <main id="main-content" class="flex-1 overflow-y-auto p-6">
                 {% if messages %}
                 <div class="max-w-4xl mx-auto mb-6 space-y-2">
                     {% for message in messages %}
@@ -117,12 +151,78 @@
         </div>
     </div>
 
-    <!-- RESPONSIVE SIDEBAR SCRIPT -->
+    <!-- UNIVERSAL UI SCRIPTS -->
     <script>
-        function toggleSidebar() {
+        // Sidebar Toggle & Dismiss
+        function toggleSidebar(e) {
+            if (e) e.stopPropagation();
             const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
             sidebar.classList.toggle('-translate-x-full');
+            backdrop.classList.toggle('hidden');
         }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
+            sidebar.classList.add('-translate-x-full');
+            backdrop.classList.add('hidden');
+        }
+
+        // User Avatar Dropdown
+        function toggleUserDropdown(e) {
+            if (e) e.stopPropagation();
+            const dropdown = document.getElementById('user-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Dropdown Navigation Handlers (Smooth scroll & Hash cleanup)
+        function goToProfileTop(e) {
+            const profileHeader = document.getElementById('profile-header');
+            const dropdown = document.getElementById('user-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+
+            if (profileHeader) {
+                e.preventDefault();
+                profileHeader.scrollIntoView({ behavior: 'smooth' });
+                if (window.location.hash) {
+                    history.replaceState(null, null, window.location.pathname);
+                }
+            }
+        }
+
+        function goToPasswordSection(e) {
+            const pwdSection = document.getElementById('password-section');
+            const dropdown = document.getElementById('user-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+
+            if (pwdSection) {
+                e.preventDefault();
+                pwdSection.scrollIntoView({ behavior: 'smooth' });
+                history.replaceState(null, null, window.location.pathname + '#password-section');
+            }
+        }
+
+        // Global Click-Outside Listener
+        document.addEventListener('click', function(e) {
+            const userDropdown = document.getElementById('user-dropdown');
+            const userMenuBtn = document.getElementById('user-menu-btn');
+            if (userDropdown && !userDropdown.classList.contains('hidden')) {
+                if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            }
+
+            // Close mobile sidebar if clicked outside on small screens
+            if (window.innerWidth < 768) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && !sidebar.classList.contains('-translate-x-full') && !sidebar.contains(e.target)) {
+                    closeSidebar();
+                }
+            }
+        });
     </script>
 </body>
 </html>
