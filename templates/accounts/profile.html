@@ -58,7 +58,7 @@
     </div>
 
     <!-- Security & Change Password Card -->
-    <div id="password-section" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6 scroll-mt-6">
+    <div id="password-section" class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8 space-y-6">
         <div class="border-b border-gray-100 pb-4 flex items-center justify-between">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Security & Password</h3>
@@ -69,7 +69,8 @@
             </div>
         </div>
 
-        <form method="POST" action="{% url 'profile' %}" class="space-y-4 max-w-xl">
+        <!-- Added autocomplete="off" to prevent browser autofill from scrolling down on load -->
+        <form method="POST" action="{% url 'profile' %}" autocomplete="off" class="space-y-4 max-w-xl">
             {% csrf_token %}
 
             <div>
@@ -148,5 +149,31 @@
             icon.classList.add('fa-eye');
         }
     }
+
+    // Force strict scroll position on page load
+    window.addEventListener('load', function() {
+        const mainContent = document.getElementById('main-content');
+        const urlParams = new URLSearchParams(window.location.search);
+
+        if (urlParams.get('tab') === 'password') {
+            const pwdSection = document.getElementById('password-section');
+            if (pwdSection) {
+                setTimeout(() => {
+                    pwdSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            }
+        } else {
+            // Guarantee landing at the top of the personal details
+            if (mainContent) {
+                mainContent.scrollTop = 0;
+            }
+            window.scrollTo(0, 0);
+
+            // Remove focus from any password inputs if browser auto-focused them
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                document.activeElement.blur();
+            }
+        }
+    });
 </script>
 {% endblock %}

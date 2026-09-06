@@ -105,10 +105,10 @@
                                 <p class="text-[11px] text-gray-400 truncate">{{ user.email }}</p>
                             </div>
                             <div class="py-1">
-                                <a href="{% url 'profile' %}" onclick="handleProfileNav(event, 'details')" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                                <a href="{% url 'profile' %}" onclick="navigateToProfile(event, 'details')" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
                                     <i class="fa-solid fa-id-badge mr-2.5 text-gray-400 w-4"></i> Profile Details
                                 </a>
-                                <a href="{% url 'profile' %}?tab=password" onclick="handleProfileNav(event, 'password')" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                                <a href="{% url 'profile' %}?tab=password" onclick="navigateToProfile(event, 'password')" class="flex items-center px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
                                     <i class="fa-solid fa-key mr-2.5 text-gray-400 w-4"></i> Change Password
                                 </a>
                             </div>
@@ -173,53 +173,32 @@
             dropdown.classList.toggle('hidden');
         }
 
-        // Dedicated Profile & Password Smooth Navigation
-        function handleProfileNav(e, target) {
+        // Clean Navigation handler between pages and on-page
+        function navigateToProfile(e, target) {
             const dropdown = document.getElementById('user-dropdown');
             if (dropdown) dropdown.classList.add('hidden');
 
+            const isAlreadyOnProfile = window.location.pathname.includes('/accounts/profile/');
             const mainContent = document.getElementById('main-content');
-            const isProfilePage = window.location.pathname.includes('/accounts/profile/');
 
-            if (isProfilePage && mainContent) {
+            if (isAlreadyOnProfile && mainContent) {
                 e.preventDefault();
                 if (target === 'details') {
                     mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-                    // Clean URL
                     if (window.location.search || window.location.hash) {
                         history.replaceState(null, null, window.location.pathname);
                     }
                 } else if (target === 'password') {
-                    const pwdCard = document.getElementById('password-section');
-                    if (pwdCard) {
-                        pwdCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    const pwdSection = document.getElementById('password-section');
+                    if (pwdSection) {
+                        pwdSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         history.replaceState(null, null, window.location.pathname + '?tab=password');
                     }
                 }
             }
         }
 
-        // Auto-handle navigation on direct page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const mainContent = document.getElementById('main-content');
-            const isProfilePage = window.location.pathname.includes('/accounts/profile/');
-            
-            if (isProfilePage && mainContent) {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('tab') === 'password') {
-                    const pwdCard = document.getElementById('password-section');
-                    if (pwdCard) {
-                        setTimeout(() => {
-                            pwdCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 150);
-                    }
-                } else {
-                    mainContent.scrollTop = 0;
-                }
-            }
-        });
-
-        // Click Outside Listener
+        // Global Click Outside Listener
         document.addEventListener('click', function(e) {
             const userDropdown = document.getElementById('user-dropdown');
             const userMenuBtn = document.getElementById('user-menu-btn');
