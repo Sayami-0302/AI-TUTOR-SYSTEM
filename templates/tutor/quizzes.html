@@ -5,15 +5,26 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto space-y-6">
-    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-        <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 sm:p-12 text-center space-y-4">
+        <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-sm">
             <i class="fa-solid fa-circle-question"></i>
         </div>
-        <h2 class="text-xl font-bold text-gray-900 mb-2">No Quizzes Available</h2>
-        <p class="text-sm text-gray-500 mb-6">Upload study documents first, then our AI will generate personalized quizzes for you.</p>
-        <a href="{% url 'documents' %}" class="inline-block px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition">
-            <i class="fa-solid fa-file-arrow-up mr-2"></i> Go to Documents
-        </a>
+        
+        <div class="space-y-1 max-w-md mx-auto">
+            <h2 class="text-xl font-bold text-gray-900">AI Quiz Generator</h2>
+            <p class="text-xs text-gray-500">
+                Upload your study materials in the Document Library, and our AI will automatically generate personalized active recall quizzes for you!
+            </p>
+        </div>
+
+        <div class="pt-2 flex flex-wrap items-center justify-center gap-3">
+            <a href="{% url 'documents:list' %}" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-100 flex items-center gap-2">
+                <i class="fa-solid fa-file-pdf"></i> Go to Document Library
+            </a>
+            <a href="{% url 'study_hub' %}" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition flex items-center gap-2">
+                <i class="fa-solid fa-brain"></i> Open Study Hub
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}
